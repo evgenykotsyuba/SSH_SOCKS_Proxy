@@ -119,10 +119,10 @@ class SSHProxyGUI:
 
         # Basic fields
         basic_fields = [
-            ("SSH_HOST", "Host:"),
-            ("SSH_PORT", "Port:"),
+            ("SSH_HOST", "SSH Server:"),
+            ("SSH_PORT", "SSH Port:"),
             ("SSH_USER", "Username:"),
-            ("DYNAMIC_PORT", "Local Port:")
+            ("DYNAMIC_PORT", "SOCKS Port:")
         ]
 
         self.settings_vars = {}
