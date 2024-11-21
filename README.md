@@ -57,7 +57,7 @@ python src/main.py
 
 ## Linux binary assembly
 ```bash
-./dist/main
+./dist/ssh_socks_proxy_binary
 ```
 
 ## Configuration Guide
