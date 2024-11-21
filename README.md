@@ -18,8 +18,8 @@ pip install tkinter asyncio
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy
-cd ssh-socks-proxy-manager
+git clone https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy ssh_socks_proxy
+cd ssh_socks_proxy
 ```
 
 ### 2. Create Virtual Environment (Optional but Recommended)
@@ -50,12 +50,12 @@ The application supports two authentication methods:
 
 ## Running the Application
 
-### Launch the Application
+### Launch the Application via Python
 ```bash
 python src/main.py
 ```
 
-## Linux binary assembly
+## Launch Linux binary assembly
 ```bash
 ./dist/ssh_socks_proxy_binary
 ```
