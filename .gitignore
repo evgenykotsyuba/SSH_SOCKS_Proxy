@@ -1,0 +1,5 @@
+.env
+build/
+tmp/
+venv/
+.idea/
