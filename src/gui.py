@@ -25,7 +25,7 @@ class SSHProxyGUI:
         self.root = root
         self.root.title("SSH SOCKS Proxy")
         self.root.geometry("700x500")
-        
+
         self.log_queue = queue.Queue()
         self.ssh_client = None
         self.connection_thread = None
@@ -68,10 +68,31 @@ class SSHProxyGUI:
         self.log_display.pack(fill=tk.BOTH, expand=True)
         self.log_display.config(state=tk.DISABLED)
 
-        # Status bar
+        # Status bar with connection indicator
+        status_frame = ttk.Frame(main_frame)
+        status_frame.pack(fill=tk.X, pady=5)
+
+        # Status text
         self.status_var = tk.StringVar(value="Not Connected")
-        status_bar = ttk.Label(main_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.pack(fill=tk.X, pady=5)
+        status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_label.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+
+        # Connection status indicator canvas
+        self.status_canvas = tk.Canvas(status_frame, width=20, height=20, highlightthickness=0,
+                                       background=self.root.winfo_toplevel().cget('background'))
+        self.status_canvas.pack(side=tk.RIGHT, padx=5)
+
+        # Initial status indicator
+        self._draw_connection_indicator(False)
+
+        # Start periodic status monitoring
+        self._check_connection_status()
+
+    def _draw_connection_indicator(self, connected: bool):
+        """Draw a round indicator showing connection status."""
+        self.status_canvas.delete("all")
+        color = "green" if connected else "red"
+        self.status_canvas.create_oval(3, 3, 17, 17, fill=color, outline=color)
 
     def _start_connection(self):
         # Validation logic
@@ -82,7 +103,7 @@ class SSHProxyGUI:
         self.connect_btn.config(state=tk.DISABLED)
         self.disconnect_btn.config(state=tk.NORMAL)
         self.settings_btn.config(state=tk.DISABLED)
-        
+
         self.connection_thread = threading.Thread(target=self._run_connection, daemon=True)
         self.connection_thread.start()
 
@@ -99,9 +120,15 @@ class SSHProxyGUI:
             loop.close()
             self._update_gui_state(connected=False)
 
+    def _check_connection_status(self):
+        """Periodically checks the connection status."""
+        if self.ssh_client:
+            self._update_connection_status(self.ssh_client.is_connected())
+        self.root.after(2000, self._check_connection_status)  # Check every 2 seconds
+
     def _update_connection_status(self, connected: bool):
         """Updates the connection status in the GUI."""
-        self.root.after(0, lambda: self._update_gui_state(connected))
+        self._update_gui_state(connected)
 
     def _stop_connection(self):
         if self.ssh_client:
@@ -155,7 +182,6 @@ class SSHProxyGUI:
         self.password_var = tk.StringVar(value=os.getenv("SSH_PASSWORD", ""))
         self.password_entry = ttk.Entry(settings_frame, textvariable=self.password_var, show="*")
         self.password_entry.grid(row=len(basic_fields) + 1, column=1, sticky=(tk.W, tk.E), pady=2)
-
 
         # SSH Key field
         self.key_label = ttk.Label(settings_frame, text="SSH Key:")
@@ -281,3 +307,16 @@ class SSHProxyGUI:
         self.disconnect_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
         self.settings_btn.config(state=tk.NORMAL if not connected else tk.DISABLED)
         self.status_var.set("Connected" if connected else "Not Connected")
+
+        # Update the connection status indicator
+        self._draw_connection_indicator(connected)
+
+
+def main():
+    root = tk.Tk()
+    app = SSHProxyGUI(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
