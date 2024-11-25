@@ -310,13 +310,3 @@ class SSHProxyGUI:
 
         # Update the connection status indicator
         self._draw_connection_indicator(connected)
-
-
-def main():
-    root = tk.Tk()
-    app = SSHProxyGUI(root)
-    root.mainloop()
-
-
-if __name__ == "__main__":
-    main()
