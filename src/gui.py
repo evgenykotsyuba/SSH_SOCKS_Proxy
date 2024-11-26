@@ -137,7 +137,7 @@ class SSHProxyGUI:
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x250")
+        settings_window.geometry("430x280")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -149,7 +149,8 @@ class SSHProxyGUI:
             ("SSH_HOST", "SSH Server:"),
             ("SSH_PORT", "SSH Port:"),
             ("SSH_USER", "Username:"),
-            ("DYNAMIC_PORT", "SOCKS Port:")
+            ("DYNAMIC_PORT", "SOCKS Port:"),
+            ("TEST_URL", "Test SOCKS URL:")
         ]
 
         self.settings_vars = {}
@@ -244,6 +245,7 @@ class SSHProxyGUI:
                 'port': int(self.settings_vars['SSH_PORT'].get() or 22),
                 'user': self.settings_vars['SSH_USER'].get(),
                 'dynamic_port': int(self.settings_vars['DYNAMIC_PORT'].get() or 1080),
+                'test_url': self.settings_vars['TEST_URL'].get() or 'https://example.com',
                 'auth_method': self.auth_method_var.get()
             }
 
@@ -269,6 +271,7 @@ class SSHProxyGUI:
             os.environ["SSH_PORT"] = str(config_dict['port'])
             os.environ["SSH_USER"] = config_dict['user']
             os.environ["DYNAMIC_PORT"] = str(config_dict['dynamic_port'])
+            os.environ["TEST_URL"] = config_dict['test_url']
             os.environ["AUTH_METHOD"] = config_dict['auth_method']
 
             if config_dict['auth_method'] == "password":

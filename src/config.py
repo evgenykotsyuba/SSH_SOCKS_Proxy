@@ -57,7 +57,7 @@ SSH_USER=username
 SSH_PORT=22
 DYNAMIC_PORT=1080
 AUTH_METHOD=password
-TEST_URL=https://google.com
+TEST_URL=https://example.com
 # SSH_PASSWORD=your_password
 # SSH_KEY_PATH=/path/to/private/key
 """
