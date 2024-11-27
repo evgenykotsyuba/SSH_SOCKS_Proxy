@@ -6,7 +6,7 @@ from dotenv import load_dotenv, set_key
 @dataclass
 class SSHConfig:
     def __init__(self, host=None, port=22, user=None, dynamic_port=1080,
-                 auth_method='password', password=None, key_path=None, test_url=None):
+                 auth_method='password', password=None, key_path=None, test_url=None, user_agent=None, home_page=None):
         self.host = host
         self.port = port
         self.user = user
@@ -15,6 +15,8 @@ class SSHConfig:
         self.password = password
         self.key_path = key_path
         self.test_url = test_url
+        self.user_agent = user_agent
+        self.home_page = home_page
 
 
 class ConfigManager:
@@ -30,7 +32,9 @@ class ConfigManager:
             password=os.getenv('SSH_PASSWORD', None),
             key_path=os.getenv('SSH_KEY_PATH', None),
             dynamic_port=int(os.getenv('DYNAMIC_PORT', '1080')),
-            test_url=os.getenv('TEST_URL', '')
+            test_url=os.getenv('TEST_URL', ''),
+            user_agent = os.getenv('USER_AGENT', ''),
+            home_page = os.getenv('HOME_PAGE', '')
         )
 
     @staticmethod
@@ -43,7 +47,9 @@ class ConfigManager:
             'SSH_PASSWORD': config.password or '',
             'SSH_KEY_PATH': config.key_path or '',
             'DYNAMIC_PORT': str(config.dynamic_port),
-            'TEST_URL': str(config.test_url)
+            'TEST_URL': str(config.test_url),
+            'USER_AGENT': str(config.user_agent),
+            'HOME_PAGE': str(config.home_page)
         }
         for key, value in env_vars.items():
             set_key('.env', key, value)
@@ -60,6 +66,10 @@ AUTH_METHOD=password
 TEST_URL=https://example.com
 # SSH_PASSWORD=your_password
 # SSH_KEY_PATH=/path/to/private/key
+
+# --- browser ---
+USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+HOME_PAGE=https://www.whatismybrowser.com
 """
         with open('.env', 'w') as f:
             f.write(default_content.strip())

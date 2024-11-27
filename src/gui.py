@@ -8,6 +8,7 @@ import asyncio
 
 from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
+from chrome import chrome_browser
 
 
 class LogHandler(logging.Handler):
@@ -60,6 +61,9 @@ class SSHProxyGUI:
         self.settings_btn = ttk.Button(btn_frame, text="Settings", command=self._show_settings)
         self.settings_btn.pack(side=tk.LEFT, padx=5)
 
+        self.chrome_btn = ttk.Button(btn_frame, text="Chrome", command=self._run_chrome_browser, state=tk.DISABLED)
+        self.chrome_btn.pack(side=tk.LEFT, padx=5)
+
         # Log display
         log_frame = ttk.LabelFrame(main_frame, text="Logs")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -103,6 +107,7 @@ class SSHProxyGUI:
         self.connect_btn.config(state=tk.DISABLED)
         self.disconnect_btn.config(state=tk.NORMAL)
         self.settings_btn.config(state=tk.DISABLED)
+        self.chrome_btn.config(state=tk.NORMAL)
 
         self.connection_thread = threading.Thread(target=self._run_connection, daemon=True)
         self.connection_thread.start()
@@ -132,12 +137,13 @@ class SSHProxyGUI:
 
     def _stop_connection(self):
         if self.ssh_client:
+            self._close_chrome_browser()
             self.ssh_client.stop()
 
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x280")
+        settings_window.geometry("430x330")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -150,7 +156,9 @@ class SSHProxyGUI:
             ("SSH_PORT", "SSH Port:"),
             ("SSH_USER", "Username:"),
             ("DYNAMIC_PORT", "SOCKS Port:"),
-            ("TEST_URL", "Test SOCKS URL:")
+            ("TEST_URL", "Test SOCKS URL:"),
+            ("USER_AGENT", "Browser User-Agent"),
+            ("HOME_PAGE", "Browser Home Page"),
         ]
 
         self.settings_vars = {}
@@ -209,6 +217,47 @@ class SSHProxyGUI:
         # Initialize auth method visibility
         self.toggle_auth_method()
 
+    def _run_chrome_browser(self):
+        """Starting Chrome browser with proxy settings."""
+        try:
+            socks_port = self.config.dynamic_port
+            user_agent = self.config.user_agent
+            home_page = self.config.home_page
+
+            # Launching the browser in a separate thread
+            def start_browser():
+                try:
+                    self.browser_driver = chrome_browser(socks_port, user_agent, home_page)
+                except Exception as e:
+                    logging.error(f"Error launching Chrome browser: {e}")
+                    messagebox.showerror("Error", f"Failed to launch Chrome: {str(e)}")
+
+            self.chrome_thread = threading.Thread(target=start_browser, daemon=True)
+            self.chrome_thread.start()
+
+            # Enable the button to close the browser
+            self.chrome_btn.config(text="Close Chrome", command=self._close_chrome_browser)
+        except Exception as e:
+            logging.error(f"Error in Chrome browser launch: {e}")
+            messagebox.showerror("Error", f"Failed to start Chrome: {str(e)}")
+
+    def _close_chrome_browser(self):
+        """Closing Chrome Browser."""
+        try:
+            if hasattr(self, 'browser_driver') and self.browser_driver:
+                self.browser_driver.quit()
+                self.browser_driver = None
+                logging.info("Chrome browser closed.")
+
+            if hasattr(self, 'chrome_thread') and self.chrome_thread.is_alive():
+                self.chrome_thread.join(timeout=1)
+
+            # Return the button to its original state
+            self.chrome_btn.config(text="Chrome", command=self._run_chrome_browser)
+        except Exception as e:
+            logging.error(f"Error closing Chrome browser: {e}")
+            messagebox.showerror("Error", f"Failed to close Chrome: {str(e)}")
+
     def toggle_auth_method(self):
         auth_method = self.auth_method_var.get()
 
@@ -246,7 +295,9 @@ class SSHProxyGUI:
                 'user': self.settings_vars['SSH_USER'].get(),
                 'dynamic_port': int(self.settings_vars['DYNAMIC_PORT'].get() or 1080),
                 'test_url': self.settings_vars['TEST_URL'].get() or 'https://example.com',
-                'auth_method': self.auth_method_var.get()
+                'auth_method': self.auth_method_var.get(),
+                'user_agent': self.settings_vars['USER_AGENT'].get() or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'home_page': self.settings_vars['HOME_PAGE'].get() or 'https://www.whatismybrowser.com/'
             }
 
             # Add authentication details based on method
@@ -273,6 +324,8 @@ class SSHProxyGUI:
             os.environ["DYNAMIC_PORT"] = str(config_dict['dynamic_port'])
             os.environ["TEST_URL"] = config_dict['test_url']
             os.environ["AUTH_METHOD"] = config_dict['auth_method']
+            os.environ["USER_AGENT"] = config_dict['user_agent']
+            os.environ["HOME_PAGE"] = config_dict['home_page']
 
             if config_dict['auth_method'] == "password":
                 os.environ["SSH_PASSWORD"] = config_dict.get('password', '')
