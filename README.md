@@ -25,7 +25,9 @@ SSH SOCKS Proxy Manager is a Python-based application that simplifies SSH SOCKS 
 - Chrome WebDriver
 
 ### Required Python Packages
-Before running the application, install the following dependencies:
+Windows - Installing with python package.
+
+Linux - Before running the application, install the following dependencies:
 
 ```bash
 pip install tkinter
@@ -89,6 +91,11 @@ python src/main.py
 ### Linux Binary Execution
 ```bash
 ./dist/ssh_socks_proxy_binary
+```
+
+### Windows Binary Execution
+```cmd
+dist\ssh_socks_proxy_binary.exe
 ```
 
 ## Application Workflow
