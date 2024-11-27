@@ -24,17 +24,25 @@ class LogHandler(logging.Handler):
 class SSHProxyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("SSH SOCKS Proxy")
+        self.config = ConfigManager.load_config()
+
+        # Initialize the title dynamically
+        self._update_window_title()
+
         self.root.geometry("700x500")
 
         self.log_queue = queue.Queue()
         self.ssh_client = None
         self.connection_thread = None
-        self.config = ConfigManager.load_config()
 
         self._setup_logging()
         self._create_gui()
         self._check_log_queue()
+
+    def _update_window_title(self):
+        """Update the window title based on connection status and configuration."""
+        connection_name = getattr(self.config, 'connection_name', None) or "Default"
+        self.root.title(f"SSH SOCKS Proxy - {connection_name}")
 
     def _setup_logging(self):
         logger = logging.getLogger()
@@ -143,7 +151,7 @@ class SSHProxyGUI:
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x330")
+        settings_window.geometry("430x360")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -152,6 +160,7 @@ class SSHProxyGUI:
 
         # Basic fields
         basic_fields = [
+            ("CONNECTION_NAME", "Connection Name:"),
             ("SSH_HOST", "SSH Server:"),
             ("SSH_PORT", "SSH Port:"),
             ("SSH_USER", "Username:"),
@@ -290,6 +299,7 @@ class SSHProxyGUI:
         try:
             # Prepare configuration dictionary
             config_dict = {
+                'connection_name': self.settings_vars['CONNECTION_NAME'].get() or 'Default',
                 'host': self.settings_vars['SSH_HOST'].get(),
                 'port': int(self.settings_vars['SSH_PORT'].get() or 22),
                 'user': self.settings_vars['SSH_USER'].get(),
@@ -317,7 +327,11 @@ class SSHProxyGUI:
             self.config = SSHConfig(**config_dict)
             ConfigManager.save_config(self.config)
 
+            # Update the title with the new connection name
+            self._update_window_title()
+
             # Update environment variables (optional, depending on your needs)
+            os.environ["CONNECTION_NAME"] = config_dict['connection_name']
             os.environ["SSH_HOST"] = config_dict['host']
             os.environ["SSH_PORT"] = str(config_dict['port'])
             os.environ["SSH_USER"] = config_dict['user']
@@ -366,3 +380,6 @@ class SSHProxyGUI:
 
         # Update the connection status indicator
         self._draw_connection_indicator(connected)
+
+        # Update the title to reflect the connection status
+        self._update_window_title()

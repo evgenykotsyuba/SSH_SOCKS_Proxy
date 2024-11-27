@@ -2,10 +2,11 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+import logging
 
 
 def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent: str, home_page: str):
-    """Launches Chrome with SOCKS proxy settings."""
+    """Launches Chrome with SOCKS5 proxy settings."""
     # Chrome options
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
@@ -28,25 +29,34 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     });
     """
 
-    # Launch the browser
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    try:
+        # Launch the browser
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
 
-    # Execute the script to override the platform property
-    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-        "source": script_to_override
-    })
+        # Execute the script to override the platform property
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": script_to_override
+        })
 
-    # Navigate to the specified home page
-    driver.get(home_page)
+        # Navigate to the specified home page
+        driver.get(home_page)
 
-    return driver
+        return driver
+
+    except Exception as e:
+        logging.error(f"Failed to launch Chrome: {e}")
+        raise
 
 
 def chrome_browser(socks_port: int, user_agent: str, home_page: str):
     """Launches the Chrome browser with SOCKS proxy."""
     socks_host = 'localhost'
-    driver = launch_chrome_with_socks_proxy(socks_host, socks_port, user_agent, home_page)
-
-    # Return the driver object for GUI control
-    return driver
+    try:
+        # Launch the browser and return the driver for control
+        driver = launch_chrome_with_socks_proxy(socks_host, socks_port, user_agent, home_page)
+        logging.info("Chrome browser launched successfully.")
+        return driver
+    except Exception as e:
+        logging.error(f"Error launching Chrome browser: {e}")
+        raise

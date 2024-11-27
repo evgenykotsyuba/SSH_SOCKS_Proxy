@@ -5,8 +5,9 @@ from dotenv import load_dotenv, set_key
 
 @dataclass
 class SSHConfig:
-    def __init__(self, host=None, port=22, user=None, dynamic_port=1080,
+    def __init__(self, connection_name='Default', host=None, port=22, user=None, dynamic_port=1080,
                  auth_method='password', password=None, key_path=None, test_url=None, user_agent=None, home_page=None):
+        self.connection_name = connection_name
         self.host = host
         self.port = port
         self.user = user
@@ -25,6 +26,7 @@ class ConfigManager:
         load_dotenv()
 
         return SSHConfig(
+            connection_name=os.getenv('CONNECTION_NAME', 'Default'),
             host=os.getenv('SSH_HOST', ''),
             port=int(os.getenv('SSH_PORT', '22')),
             user=os.getenv('SSH_USER', ''),
@@ -40,6 +42,7 @@ class ConfigManager:
     @staticmethod
     def save_config(config: SSHConfig):
         env_vars = {
+            'CONNECTION_NAME': str(config.connection_name),
             'SSH_HOST': config.host,
             'SSH_PORT': str(config.port),
             'SSH_USER': config.user,
@@ -57,6 +60,8 @@ class ConfigManager:
     @staticmethod
     def create_default_env():
         default_content = """
+CONNECTION_NAME=Default
+
 # SSH Connection Settings
 SSH_HOST=example.com
 SSH_USER=username
@@ -67,7 +72,7 @@ TEST_URL=https://example.com
 # SSH_PASSWORD=your_password
 # SSH_KEY_PATH=/path/to/private/key
 
-# --- browser ---
+# Browser Settings
 USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
 HOME_PAGE=https://www.whatismybrowser.com
 """
