@@ -72,6 +72,9 @@ class SSHProxyGUI:
         self.chrome_btn = ttk.Button(btn_frame, text="Chrome", command=self._run_chrome_browser, state=tk.DISABLED)
         self.chrome_btn.pack(side=tk.LEFT, padx=5)
 
+        self.help_btn = ttk.Button(btn_frame, text="Help", command=self._show_help)
+        self.help_btn.pack(side=tk.LEFT, padx=5)
+
         # Log display
         log_frame = ttk.LabelFrame(main_frame, text="Logs")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -266,6 +269,38 @@ class SSHProxyGUI:
         except Exception as e:
             logging.error(f"Error closing Chrome browser: {e}")
             messagebox.showerror("Error", f"Failed to close Chrome: {str(e)}")
+
+    def _show_help(self):
+        """Displays the content of info.md in a new help window."""
+        try:
+            # Load the content of info.md
+            with open("info.md", "r", encoding="utf-8") as help_file:
+                help_content = help_file.read()
+
+            # Create a new window
+            help_window = tk.Toplevel(self.root)
+            help_window.title("Help")
+            help_window.geometry("600x400")  # Adjusted size for better readability
+            help_window.transient(self.root)
+            help_window.grab_set()
+
+            # Create a frame for the help text
+            text_frame = ttk.Frame(help_window, padding="10")
+            text_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Create a scrollable text widget to display the help content
+            help_text = scrolledtext.ScrolledText(
+                text_frame,
+                wrap=tk.WORD,
+                font=("Arial", 10),
+                state=tk.NORMAL,
+            )
+            help_text.insert(tk.END, help_content)
+            help_text.config(state=tk.DISABLED)  # Make the text read-only
+            help_text.pack(fill=tk.BOTH, expand=True)
+        except Exception as e:
+            logging.error(f"Failed to load help content: {e}")
+            messagebox.showerror("Error", f"Could not load help content:\n{e}")
 
     def toggle_auth_method(self):
         auth_method = self.auth_method_var.get()
