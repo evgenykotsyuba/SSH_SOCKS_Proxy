@@ -239,7 +239,8 @@ class SSHProxyGUI:
             # Launching the browser in a separate thread
             def start_browser():
                 try:
-                    self.browser_driver = chrome_browser(socks_port, user_agent, home_page)
+                    custom_title = self.config.connection_name + ': ' + self.config.home_page.replace("https://", "")
+                    self.browser_driver = chrome_browser(socks_port, user_agent, home_page, custom_title)
                 except Exception as e:
                     logging.error(f"Error launching Chrome browser: {e}")
                     messagebox.showerror("Error", f"Failed to launch Chrome: {str(e)}")
