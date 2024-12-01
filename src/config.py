@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import os
 from dotenv import load_dotenv, set_key
+import logging
 
 
 @dataclass
@@ -21,6 +22,32 @@ class SSHConfig:
 
 
 class ConfigManager:
+    @staticmethod
+    def create_default_env():
+        if not os.path.exists('.env'):
+            default_content = """
+        CONNECTION_NAME=Default
+
+        # SSH Connection Settings
+        SSH_HOST=example.com
+        SSH_USER=username
+        SSH_PORT=22
+        DYNAMIC_PORT=1080
+        AUTH_METHOD=password
+        TEST_URL=https://example.com
+        SSH_PASSWORD=
+        SSH_KEY_PATH=
+
+        # Browser Settings
+        USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
+        HOME_PAGE=https://www.whatismybrowser.com
+        """
+            with open('.env', 'w') as f:
+                f.write(default_content.strip())
+            logging.info("Default .env file created.")
+        else:
+            logging.info(".env file already exists.")
+
     @staticmethod
     def load_config() -> SSHConfig:
         load_dotenv()
@@ -56,25 +83,3 @@ class ConfigManager:
         }
         for key, value in env_vars.items():
             set_key('.env', key, value)
-
-    @staticmethod
-    def create_default_env():
-        default_content = """
-CONNECTION_NAME=Default
-
-# SSH Connection Settings
-SSH_HOST=example.com
-SSH_USER=username
-SSH_PORT=22
-DYNAMIC_PORT=1080
-AUTH_METHOD=password
-TEST_URL=https://example.com
-# SSH_PASSWORD=your_password
-# SSH_KEY_PATH=/path/to/private/key
-
-# Browser Settings
-USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
-HOME_PAGE=https://www.whatismybrowser.com
-"""
-        with open('.env', 'w') as f:
-            f.write(default_content.strip())
