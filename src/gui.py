@@ -31,11 +31,13 @@ class SSHProxyGUI:
         # Initialize the title dynamically
         self._update_window_title()
 
-        self.root.geometry("700x500")
+        self.root.geometry("700x90")
 
         self.log_queue = queue.Queue()
         self.ssh_client = None
         self.connection_thread = None
+
+        self.log_enabled = False
 
         self._setup_logging()
         self._create_gui()
@@ -74,45 +76,64 @@ class SSHProxyGUI:
         self.chrome_btn = ttk.Button(btn_frame, text="Chrome", command=self._run_chrome_browser, state=tk.DISABLED)
         self.chrome_btn.pack(side=tk.LEFT, padx=5)
 
+        self.chrome_btn.bind("<Enter>", lambda event: self.status_var.set("Chrome browser - Incognito Tab"))
+        self.chrome_btn.bind("<Leave>", lambda event: self.status_var.set(""))
+
         self.http_proxy_btn = ttk.Button(btn_frame, text="HTTP Proxy", command=self._run_http_proxy, state=tk.DISABLED)
         self.http_proxy_btn.pack(side=tk.LEFT, padx=5)
+
+        self.http_proxy_btn.bind("<Enter>", lambda event: self.status_var.set("HTTP proxy over SOCKS5"))
+        self.http_proxy_btn.bind("<Leave>", lambda event: self.status_var.set(""))
+
+        self.toggle_logs_btn = ttk.Button(btn_frame, text="Show Logs", command=self._toggle_logs)
+        self.toggle_logs_btn.pack(side=tk.LEFT, padx=5)
 
         self.help_btn = ttk.Button(btn_frame, text="Help", command=self._show_help)
         self.help_btn.pack(side=tk.LEFT, padx=5)
 
         # Log display
-        log_frame = ttk.LabelFrame(main_frame, text="Logs")
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-
-        self.log_display = scrolledtext.ScrolledText(log_frame, height=20, wrap=tk.WORD)
+        self.log_frame = ttk.LabelFrame(main_frame, text="Logs")
+        self.log_display = scrolledtext.ScrolledText(self.log_frame, height=10, wrap=tk.WORD)
         self.log_display.pack(fill=tk.BOTH, expand=True)
         self.log_display.config(state=tk.DISABLED)
+        self.log_frame.pack_forget()  # Скрываем панель логов при инициализации
 
-        # Status bar with connection indicator
-        status_frame = ttk.Frame(main_frame)
-        status_frame.pack(fill=tk.X, pady=5)
+        # Status bar
+        self.status_frame = ttk.Frame(main_frame)
+        self.status_frame.pack(fill=tk.X, pady=5)
 
         # Status text
         self.status_var = tk.StringVar(value="Not Connected")
-        status_label = ttk.Label(status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
+        status_label = ttk.Label(self.status_frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_label.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
 
-        # Connection status indicator canvas
-        self.status_canvas = tk.Canvas(status_frame, width=20, height=20, highlightthickness=0,
+        # Connection status indicator
+        self.status_canvas = tk.Canvas(self.status_frame, width=20, height=20, highlightthickness=0,
                                        background=self.root.winfo_toplevel().cget('background'))
         self.status_canvas.pack(side=tk.RIGHT, padx=5)
 
-        # Initial status indicator
         self._draw_connection_indicator(False)
-
-        # Start periodic status monitoring
-        self._check_connection_status()
 
     def _draw_connection_indicator(self, connected: bool):
         """Draw a round indicator showing connection status."""
         self.status_canvas.delete("all")
         color = "green" if connected else "red"
         self.status_canvas.create_oval(3, 3, 17, 17, fill=color, outline=color)
+
+    def _toggle_logs(self):
+        """Toggle the visibility of logs."""
+        if self.log_enabled:
+            # Hide logs
+            self.log_frame.pack_forget()
+            self.root.geometry("700x90")  # Smaller window
+            self.toggle_logs_btn.config(text="Show Logs")
+            self.log_enabled = False
+        else:
+            # Show logs
+            self.log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+            self.root.geometry("700x600")  # Larger window
+            self.toggle_logs_btn.config(text="Hide Logs")
+            self.log_enabled = True
 
     def _start_connection(self):
         # Validation logic
