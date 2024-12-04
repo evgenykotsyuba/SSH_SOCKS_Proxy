@@ -7,7 +7,8 @@ import logging
 @dataclass
 class SSHConfig:
     def __init__(self, connection_name='Default', host=None, port=22, user=None, dynamic_port=1080,
-                 auth_method='password', password=None, key_path=None, test_url=None, user_agent=None, home_page=None):
+                 auth_method='password', password=None, key_path=None,
+                 http_proxy_port=8080, test_url=None, user_agent=None, home_page=None):
         self.connection_name = connection_name
         self.host = host
         self.port = port
@@ -17,6 +18,7 @@ class SSHConfig:
         self.password = password
         self.key_path = key_path
         self.test_url = test_url
+        self.http_proxy_port = http_proxy_port
         self.user_agent = user_agent
         self.home_page = home_page
 
@@ -35,6 +37,7 @@ class ConfigManager:
         DYNAMIC_PORT=1080
         AUTH_METHOD=password
         TEST_URL=https://example.com
+        HTTP_PROXY_PORT=8080
         SSH_PASSWORD=
         SSH_KEY_PATH=
 
@@ -62,6 +65,7 @@ class ConfigManager:
             key_path=os.getenv('SSH_KEY_PATH', None),
             dynamic_port=int(os.getenv('DYNAMIC_PORT', '1080')),
             test_url=os.getenv('TEST_URL', ''),
+            http_proxy_port=int(os.getenv('HTTP_PROXY_PORT', '8080')),
             user_agent = os.getenv('USER_AGENT', ''),
             home_page = os.getenv('HOME_PAGE', '')
         )
@@ -78,6 +82,7 @@ class ConfigManager:
             'SSH_KEY_PATH': config.key_path or '',
             'DYNAMIC_PORT': str(config.dynamic_port),
             'TEST_URL': str(config.test_url),
+            'HTTP_PROXY_PORT': str(config.http_proxy_port),
             'USER_AGENT': str(config.user_agent),
             'HOME_PAGE': str(config.home_page)
         }

@@ -1,5 +1,6 @@
 import os
 import tkinter as tk
+import traceback
 from tkinter import ttk, messagebox, scrolledtext, filedialog
 import threading
 import queue
@@ -9,6 +10,7 @@ import asyncio
 from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
 from chrome import chrome_browser
+from socks_to_http_proxy import SOCKStoHTTPProxy
 
 
 class LogHandler(logging.Handler):
@@ -72,6 +74,9 @@ class SSHProxyGUI:
         self.chrome_btn = ttk.Button(btn_frame, text="Chrome", command=self._run_chrome_browser, state=tk.DISABLED)
         self.chrome_btn.pack(side=tk.LEFT, padx=5)
 
+        self.http_proxy_btn = ttk.Button(btn_frame, text="HTTP Proxy", command=self._run_http_proxy, state=tk.DISABLED)
+        self.http_proxy_btn.pack(side=tk.LEFT, padx=5)
+
         self.help_btn = ttk.Button(btn_frame, text="Help", command=self._show_help)
         self.help_btn.pack(side=tk.LEFT, padx=5)
 
@@ -119,6 +124,7 @@ class SSHProxyGUI:
         self.disconnect_btn.config(state=tk.NORMAL)
         self.settings_btn.config(state=tk.DISABLED)
         self.chrome_btn.config(state=tk.NORMAL)
+        self.http_proxy_btn.config(state=tk.NORMAL)
 
         self.connection_thread = threading.Thread(target=self._run_connection, daemon=True)
         self.connection_thread.start()
@@ -149,12 +155,15 @@ class SSHProxyGUI:
     def _stop_connection(self):
         if self.ssh_client:
             self._close_chrome_browser()
+            self.chrome_btn.config(state=tk.DISABLED)
+            self._close_http_proxy()
+            self.http_proxy_btn.config(state=tk.DISABLED)
             self.ssh_client.stop()
 
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x360")
+        settings_window.geometry("430x390")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -169,6 +178,7 @@ class SSHProxyGUI:
             ("SSH_USER", "Username:"),
             ("DYNAMIC_PORT", "SOCKS Port:"),
             ("TEST_URL", "Test SOCKS URL:"),
+            ("HTTP_PROXY_PORT", "HTTP Proxy Port:"),
             ("USER_AGENT", "Browser User-Agent"),
             ("HOME_PAGE", "Browser Home Page"),
         ]
@@ -228,6 +238,70 @@ class SSHProxyGUI:
 
         # Initialize auth method visibility
         self.toggle_auth_method()
+
+    def _run_http_proxy(self):
+        try:
+            socks_port = self.config.dynamic_port  # Extract the SOCKS port from the configuration
+            http_port = self.config.http_proxy_port  # Extract the HTTP proxy port from the configuration
+
+            def start_http_proxy():
+                # Create and start the HTTP proxy
+                proxy = SOCKStoHTTPProxy(http_port=http_port, socks_port=socks_port)
+                proxy.start()  # Start the proxy server
+
+            # Start the proxy server in a separate thread to allow asynchronous operation
+            threading.Thread(target=start_http_proxy, daemon=True).start()
+
+            logging.info(f"HTTP Proxy started on port {http_port} with SOCKS Proxy connection on port {socks_port}")
+
+            # Enable the button to disconnect the proxy
+            self.http_proxy_btn.config(text="Disconnect Proxy", command=self._close_http_proxy())
+
+        except ValueError as e:
+            logging.error(f"Error starting the HTTP Proxy: {e}")
+        except Exception as e:
+            logging.error(f"Unknown error: {e}")
+
+    def _close_http_proxy(self):
+        """Disconnect HTTP Proxy."""
+        try:
+            # Отключаем кнопку для предотвращения повторных нажатий
+            self.http_proxy_btn.config(state=tk.DISABLED)
+
+            # Останавливаем прокси-сервер, если он существует
+            if hasattr(self, 'proxy'):
+                try:
+                    # Установка флага остановки
+                    self.proxy._stop_event.set()
+
+                    # Попытка остановки прокси-сервера
+                    self.proxy.stop()
+
+                    logging.info("HTTP Proxy disconnected successfully.")
+                except Exception as e:
+                    logging.error(f"Error stopping HTTP Proxy: {e}")
+                    logging.error(traceback.format_exc())
+
+                # Удаление ссылки на прокси
+                del self.proxy
+
+            # Восстановление состояния кнопки
+            self.http_proxy_btn.config(
+                text="HTTP Proxy",
+                command=self._run_http_proxy,
+                state=tk.NORMAL
+            )
+
+        except Exception as e:
+            logging.error(f"Error during HTTP Proxy disconnection: {e}")
+            logging.error(traceback.format_exc())
+
+            # Гарантированное восстановление состояния кнопки
+            self.http_proxy_btn.config(
+                text="HTTP Proxy",
+                command=self._run_http_proxy,
+                state=tk.NORMAL
+            )
 
     def _run_chrome_browser(self):
         """Starting Chrome browser with proxy settings."""
@@ -304,24 +378,22 @@ class SSHProxyGUI:
             messagebox.showerror("Error", f"Could not load help content:\n{e}")
 
     def toggle_auth_method(self):
-        auth_method = self.auth_method_var.get()
-
-        if auth_method == "password":
-            # Show password entry and hide SSH key entry
-            self.password_label.grid()
+        """Toggle visibility of authentication method fields."""
+        if self.auth_method_var.get() == "password":
             self.password_entry.grid()
-            self.key_label.grid_remove()
+            self.password_label.grid()
             self.key_entry.grid_remove()
+            self.key_label.grid_remove()
             self.browse_btn.grid_remove()
         else:
-            # Show SSH key entry and hide password entry
-            self.password_label.grid_remove()
             self.password_entry.grid_remove()
-            self.key_label.grid()
+            self.password_label.grid_remove()
             self.key_entry.grid()
+            self.key_label.grid()
             self.browse_btn.grid()
 
     def browse_key(self):
+        """Open a file dialog to browse for the SSH key."""
         key_path = filedialog.askopenfilename(
             title="Select SSH Key File",
             filetypes=[("SSH Key Files", "*.pem *.key"), ("All Files", "*.*")]
@@ -332,6 +404,7 @@ class SSHProxyGUI:
             messagebox.showerror("Error", "Selected file does not exist or cannot be accessed.")
 
     def save_settings(self, settings_window):
+        """Save user-defined settings to the configuration."""
         try:
             # Prepare configuration dictionary
             config_dict = {
@@ -341,6 +414,7 @@ class SSHProxyGUI:
                 'user': self.settings_vars['SSH_USER'].get(),
                 'dynamic_port': int(self.settings_vars['DYNAMIC_PORT'].get() or 1080),
                 'test_url': self.settings_vars['TEST_URL'].get() or 'https://example.com',
+                'http_proxy_port': int(self.settings_vars['HTTP_PROXY_PORT'].get() or 8080),
                 'auth_method': self.auth_method_var.get(),
                 'user_agent': self.settings_vars['USER_AGENT'].get() or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 'home_page': self.settings_vars['HOME_PAGE'].get() or 'https://www.whatismybrowser.com/'
@@ -373,6 +447,7 @@ class SSHProxyGUI:
             os.environ["SSH_USER"] = config_dict['user']
             os.environ["DYNAMIC_PORT"] = str(config_dict['dynamic_port'])
             os.environ["TEST_URL"] = config_dict['test_url']
+            os.environ["HTTP_PROXY_PORT"] = str(config_dict['http_proxy_port'])
             os.environ["AUTH_METHOD"] = config_dict['auth_method']
             os.environ["USER_AGENT"] = config_dict['user_agent']
             os.environ["HOME_PAGE"] = config_dict['home_page']
@@ -393,6 +468,7 @@ class SSHProxyGUI:
             messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
 
     def _check_log_queue(self):
+        """Update the log display with new log messages."""
         try:
             while True:
                 log_msg = self.log_queue.get_nowait()
