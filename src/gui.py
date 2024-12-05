@@ -6,6 +6,7 @@ import threading
 import queue
 import logging
 import asyncio
+import datetime
 
 from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
@@ -49,11 +50,27 @@ class SSHProxyGUI:
         self.root.title(f"SSH SOCKS Proxy - {connection_name}")
 
     def _setup_logging(self):
+        # Ensure the log directory exists
+        log_dir = "./log"
+        os.makedirs(log_dir, exist_ok=True)
+
+        # Create logger
         logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)  # Переключите на INFO для релиза
+
+        # Create file handler with a robust file path
+        log_filename = os.path.join(log_dir, f"socks_proxy_{datetime.date.today()}.log")
+        file_handler = logging.FileHandler(log_filename)
+
+        # Set formatter
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+        # Add handler to logger
+        logger.addHandler(file_handler)
+
+        # Добавляем обработчик для интерфейса
         handler = LogHandler(self.log_queue)
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-        handler.setFormatter(formatter)
+        handler.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(handler)
 
     def _create_gui(self):

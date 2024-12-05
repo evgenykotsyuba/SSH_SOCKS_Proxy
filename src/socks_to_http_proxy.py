@@ -4,13 +4,19 @@ import threading
 import sys
 import logging
 import traceback
+import datetime
+import os
+
+# Logging configuration
+log_dir = "./log"
+os.makedirs(log_dir, exist_ok=True)
 
 # Logging configuration
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('proxy_debug.log'),
+        logging.FileHandler(os.path.join(log_dir, f'htttp_proxy_debug_{datetime.date.today()}.log')),
         logging.StreamHandler(sys.stdout)
     ]
 )

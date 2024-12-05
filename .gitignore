@@ -3,3 +3,4 @@ build/
 tmp/
 venv/
 .idea/
+log/
