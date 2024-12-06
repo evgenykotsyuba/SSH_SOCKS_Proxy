@@ -50,8 +50,9 @@ class SSHProxyGUI:
         self.root.title(f"SSH SOCKS Proxy - {connection_name}")
 
     def _setup_logging(self):
-        # Ensure the log directory exists
-        log_dir = "./log"
+
+        # Determine the log directory (cross-platform)
+        log_dir = os.path.join(os.getcwd(), "log")
         os.makedirs(log_dir, exist_ok=True)
 
         # Create logger

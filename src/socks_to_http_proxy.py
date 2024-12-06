@@ -7,8 +7,8 @@ import traceback
 import datetime
 import os
 
-# Logging configuration
-log_dir = "./log"
+# Determine the log directory (cross-platform)
+log_dir = os.path.join(os.getcwd(), "log")
 os.makedirs(log_dir, exist_ok=True)
 
 # Logging configuration
@@ -16,7 +16,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(log_dir, f'htttp_proxy_debug_{datetime.date.today()}.log')),
+        logging.FileHandler(os.path.join(log_dir, f'http_proxy_debug_{datetime.date.today()}.log')),
         logging.StreamHandler(sys.stdout)
     ]
 )

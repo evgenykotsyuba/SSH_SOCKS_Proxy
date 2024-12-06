@@ -4,3 +4,4 @@ tmp/
 venv/
 .idea/
 log/
+src/log
