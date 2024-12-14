@@ -8,7 +8,7 @@ import logging
 class SSHConfig:
     def __init__(self, connection_name='Default', host=None, port=22, user=None, dynamic_port=1080,
                  auth_method='password', password=None, key_path=None,
-                 http_proxy_port=8080, test_url=None, user_agent=None, home_page=None):
+                 http_proxy_port=8080, test_url=None, user_agent=None, home_page=None, selected_language='en'):
         self.connection_name = connection_name
         self.host = host
         self.port = port
@@ -21,6 +21,7 @@ class SSHConfig:
         self.http_proxy_port = http_proxy_port
         self.user_agent = user_agent
         self.home_page = home_page
+        self.selected_language = selected_language
 
 
 class ConfigManager:
@@ -44,6 +45,9 @@ class ConfigManager:
         # Browser Settings
         USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
         HOME_PAGE=https://www.whatismybrowser.com
+        
+        # Language
+        LANGUAGE=en
         """
             with open('.env', 'w') as f:
                 f.write(default_content.strip())
@@ -66,8 +70,9 @@ class ConfigManager:
             dynamic_port=int(os.getenv('DYNAMIC_PORT', '1080')),
             test_url=os.getenv('TEST_URL', ''),
             http_proxy_port=int(os.getenv('HTTP_PROXY_PORT', '8080')),
-            user_agent = os.getenv('USER_AGENT', ''),
-            home_page = os.getenv('HOME_PAGE', '')
+            user_agent=os.getenv('USER_AGENT', ''),
+            home_page=os.getenv('HOME_PAGE', ''),
+            selected_language=os.getenv('LANGUAGE', 'en')
         )
 
     @staticmethod
@@ -84,7 +89,8 @@ class ConfigManager:
             'TEST_URL': str(config.test_url),
             'HTTP_PROXY_PORT': str(config.http_proxy_port),
             'USER_AGENT': str(config.user_agent),
-            'HOME_PAGE': str(config.home_page)
+            'HOME_PAGE': str(config.home_page),
+            'LANGUAGE': config.selected_language
         }
         for key, value in env_vars.items():
             set_key('.env', key, value)

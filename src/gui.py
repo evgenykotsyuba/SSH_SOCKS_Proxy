@@ -12,6 +12,7 @@ from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
 from chrome import chrome_browser
 from socks_to_http_proxy import SOCKStoHTTPProxy
+from languages_dictionary import TRANSLATIONS
 
 
 class LogHandler(logging.Handler):
@@ -32,7 +33,7 @@ class SSHProxyGUI:
         # Initialize the title dynamically
         self._update_window_title()
 
-        self.root.geometry("700x90")
+        self.root.geometry("800x90")
 
         self.log_queue = queue.Queue()
         self.ssh_client = None
@@ -41,6 +42,10 @@ class SSHProxyGUI:
         self.log_enabled = False
 
         self._setup_logging()
+
+        # Initialize selected_language before calling _create_gui()
+        self.selected_language = tk.StringVar(value=self.config.selected_language)
+
         self._create_gui()
         self._check_log_queue()
 
@@ -57,7 +62,7 @@ class SSHProxyGUI:
 
         # Create logger
         logger = logging.getLogger()
-        logger.setLevel(logging.INFO)  # Переключите на INFO для релиза
+        logger.setLevel(logging.INFO)  # Switch to INFO for release
 
         # Create file handler with a robust file path
         log_filename = os.path.join(log_dir, f"socks_proxy_{datetime.date.today()}.log")
@@ -69,7 +74,7 @@ class SSHProxyGUI:
         # Add handler to logger
         logger.addHandler(file_handler)
 
-        # Добавляем обработчик для интерфейса
+        # Add a handler for the interface
         handler = LogHandler(self.log_queue)
         handler.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(handler)
@@ -81,6 +86,8 @@ class SSHProxyGUI:
         # Buttons
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill=tk.X, pady=5)
+
+        # self.selected_language = tk.StringVar(value="en")  # Default language
 
         self.connect_btn = ttk.Button(btn_frame, text="Connect", command=self._start_connection)
         self.connect_btn.pack(side=tk.LEFT, padx=5)
@@ -107,14 +114,14 @@ class SSHProxyGUI:
         self.toggle_logs_btn.pack(side=tk.LEFT, padx=5)
 
         self.help_btn = ttk.Button(btn_frame, text="Help", command=self._show_help)
-        self.help_btn.pack(side=tk.LEFT, padx=5)
+        self.help_btn.pack(side=tk.RIGHT, padx=5)
 
         # Log display
         self.log_frame = ttk.LabelFrame(main_frame, text="Logs")
         self.log_display = scrolledtext.ScrolledText(self.log_frame, height=10, wrap=tk.WORD)
         self.log_display.pack(fill=tk.BOTH, expand=True)
         self.log_display.config(state=tk.DISABLED)
-        self.log_frame.pack_forget()  # Скрываем панель логов при инициализации
+        self.log_frame.pack_forget()  # Hide the log panel during initialization
 
         # Status bar
         self.status_frame = ttk.Frame(main_frame)
@@ -132,6 +139,8 @@ class SSHProxyGUI:
 
         self._draw_connection_indicator(False)
 
+        self._update_texts()
+
     def _draw_connection_indicator(self, connected: bool):
         """Draw a round indicator showing connection status."""
         self.status_canvas.delete("all")
@@ -140,17 +149,18 @@ class SSHProxyGUI:
 
     def _toggle_logs(self):
         """Toggle the visibility of logs."""
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
         if self.log_enabled:
             # Hide logs
             self.log_frame.pack_forget()
-            self.root.geometry("700x90")  # Smaller window
-            self.toggle_logs_btn.config(text="Show Logs")
+            self.root.geometry("800x90")  # Smaller window
+            self.toggle_logs_btn.config(text=translations["Show Logs"])
             self.log_enabled = False
         else:
             # Show logs
             self.log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-            self.root.geometry("700x600")  # Larger window
-            self.toggle_logs_btn.config(text="Hide Logs")
+            self.root.geometry("800x600")  # Larger window
+            self.toggle_logs_btn.config(text=translations["Hide Logs"])
             self.log_enabled = True
 
     def _start_connection(self):
@@ -202,7 +212,7 @@ class SSHProxyGUI:
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x390")
+        settings_window.geometry("430x430")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -218,8 +228,8 @@ class SSHProxyGUI:
             ("DYNAMIC_PORT", "SOCKS Port:"),
             ("TEST_URL", "Test SOCKS URL:"),
             ("HTTP_PROXY_PORT", "HTTP Proxy Port:"),
-            ("USER_AGENT", "Browser User-Agent"),
-            ("HOME_PAGE", "Browser Home Page"),
+            ("USER_AGENT", "Browser User-Agent:"),
+            ("HOME_PAGE", "Browser Home Page:"),
         ]
 
         self.settings_vars = {}
@@ -271,15 +281,39 @@ class SSHProxyGUI:
         key_frame.columnconfigure(0, weight=1)
         key_frame.columnconfigure(1, weight=0)
 
+        # Language selection dropdown
+        ttk.Label(settings_frame, text="Language:").grid(row=len(basic_fields) + 3, column=0, sticky=tk.W, pady=2)
+        self.selected_language = tk.StringVar(value=self.selected_language.get())  # Default language
+        language_dropdown = ttk.Combobox(settings_frame, textvariable=self.selected_language, state="readonly")
+        language_dropdown["values"] = ["en", "ru", "ua"]
+        language_dropdown.grid(row=len(basic_fields) + 3, column=1, sticky=(tk.W, tk.E), pady=2)
+
+        # Bind the event for language selection
+        language_dropdown.bind("<<ComboboxSelected>>", lambda _: self._update_texts())
+
         # Save button
         ttk.Button(settings_frame, text="Save", command=lambda: self.save_settings(settings_window)).grid(
-            row=len(basic_fields) + 3, column=0, columnspan=2, pady=10)
+            row=len(basic_fields) + 4, column=0, columnspan=2, pady=10)
 
         # Initialize auth method visibility
         self.toggle_auth_method()
 
+    def _update_texts(self):
+        """Update button and label texts based on the selected language."""
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
+        self.connect_btn.config(text=translations["Connect"])
+        self.disconnect_btn.config(text=translations["Disconnect"])
+        self.settings_btn.config(text=translations["Settings"])
+        self.chrome_btn.config(text=translations["Chrome"])
+        self.http_proxy_btn.config(text=translations["HTTP Proxy"])
+        self.toggle_logs_btn.config(
+            text=translations["Show Logs"] if not self.log_enabled else translations["Hide Logs"])
+        self.help_btn.config(text=translations["Help"])
+        self.status_var.set(translations["Not Connected"] if not self.ssh_client else translations["Connected"])
+
     def _run_http_proxy(self):
         try:
+            translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
             socks_port = self.config.dynamic_port  # Extract the SOCKS port from the configuration
             http_port = self.config.http_proxy_port  # Extract the HTTP proxy port from the configuration
 
@@ -294,26 +328,27 @@ class SSHProxyGUI:
             logging.info(f"HTTP Proxy started on port {http_port} with SOCKS Proxy connection on port {socks_port}")
 
             # Enable the button to disconnect the proxy
-            self.http_proxy_btn.config(text="Disconnect Proxy", command=self._close_http_proxy())
+            self.http_proxy_btn.config(text=translations["Disconnect Proxy"], command=self._close_http_proxy())
 
         except ValueError as e:
             logging.error(f"Error starting the HTTP Proxy: {e}")
         except Exception as e:
             logging.error(f"Unknown error: {e}")
 
-    def _close_http_proxy(self):
+    def _close_http_proxy(self):  # The function does not work correctly
         """Disconnect HTTP Proxy."""
         try:
-            # Отключаем кнопку для предотвращения повторных нажатий
+            translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
+            # Disable the button to prevent repeated presses
             self.http_proxy_btn.config(state=tk.DISABLED)
 
-            # Останавливаем прокси-сервер, если он существует
+            # Stop the proxy server if it exists
             if hasattr(self, 'proxy'):
                 try:
-                    # Установка флага остановки
+                    # Set stop flag
                     self.proxy._stop_event.set()
 
-                    # Попытка остановки прокси-сервера
+                    # Trying to stop proxy server
                     self.proxy.stop()
 
                     logging.info("HTTP Proxy disconnected successfully.")
@@ -321,12 +356,12 @@ class SSHProxyGUI:
                     logging.error(f"Error stopping HTTP Proxy: {e}")
                     logging.error(traceback.format_exc())
 
-                # Удаление ссылки на прокси
+                # Removing proxy link
                 del self.proxy
 
-            # Восстановление состояния кнопки
+            # Restore button state
             self.http_proxy_btn.config(
-                text="HTTP Proxy",
+                text=translations["HTTP Proxy"],
                 command=self._run_http_proxy,
                 state=tk.NORMAL
             )
@@ -335,7 +370,7 @@ class SSHProxyGUI:
             logging.error(f"Error during HTTP Proxy disconnection: {e}")
             logging.error(traceback.format_exc())
 
-            # Гарантированное восстановление состояния кнопки
+            # Guaranteed button state restoration
             self.http_proxy_btn.config(
                 text="HTTP Proxy",
                 command=self._run_http_proxy,
@@ -345,6 +380,7 @@ class SSHProxyGUI:
     def _run_chrome_browser(self):
         """Starting Chrome browser with proxy settings."""
         try:
+            translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
             socks_port = self.config.dynamic_port
             user_agent = self.config.user_agent
             home_page = self.config.home_page
@@ -362,13 +398,14 @@ class SSHProxyGUI:
             self.chrome_thread.start()
 
             # Enable the button to close the browser
-            self.chrome_btn.config(text="Close Chrome", command=self._close_chrome_browser)
+            self.chrome_btn.config(text=translations["Close Chrome"], command=self._close_chrome_browser)
         except Exception as e:
             logging.error(f"Error in Chrome browser launch: {e}")
             messagebox.showerror("Error", f"Failed to start Chrome: {str(e)}")
 
     def _close_chrome_browser(self):
         """Closing Chrome Browser."""
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
         try:
             if hasattr(self, 'browser_driver') and self.browser_driver:
                 self.browser_driver.quit()
@@ -379,7 +416,7 @@ class SSHProxyGUI:
                 self.chrome_thread.join(timeout=1)
 
             # Return the button to its original state
-            self.chrome_btn.config(text="Chrome", command=self._run_chrome_browser)
+            self.chrome_btn.config(text=translations["Chrome"], command=self._run_chrome_browser)
         except Exception as e:
             logging.error(f"Error closing Chrome browser: {e}")
             messagebox.showerror("Error", f"Failed to close Chrome: {str(e)}")
@@ -394,7 +431,7 @@ class SSHProxyGUI:
             # Create a new window
             help_window = tk.Toplevel(self.root)
             help_window.title("Help")
-            help_window.geometry("600x400")  # Adjusted size for better readability
+            help_window.geometry("600x500")  # Adjusted size for better readability
             help_window.transient(self.root)
             help_window.grab_set()
 
@@ -472,6 +509,8 @@ class SSHProxyGUI:
                     messagebox.showerror("Error", "SSH Key file does not exist.")
                     return
 
+            config_dict['selected_language'] = self.selected_language.get()
+
             # Update configuration
             self.config = SSHConfig(**config_dict)
             ConfigManager.save_config(self.config)
@@ -495,6 +534,8 @@ class SSHProxyGUI:
                 os.environ["SSH_PASSWORD"] = config_dict.get('password', '')
             else:
                 os.environ["SSH_KEY_PATH"] = config_dict.get('key_path', '')
+
+            os.environ["LANGUAGE"] = config_dict.get('selected_language', '')
 
             # Show success message
             messagebox.showinfo("Settings", "Configuration saved successfully!")
