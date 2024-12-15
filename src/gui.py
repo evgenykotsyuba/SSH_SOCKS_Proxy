@@ -423,6 +423,12 @@ class SSHProxyGUI:
 
     def _show_help(self):
         """Displays the content of info.md in a new help window."""
+        # Check if info.md file exists
+        if not os.path.exists("info.md"):
+            logging.warning("Help file 'info.md' not found")
+            messagebox.showinfo("Help", "Help documentation is not available.")
+            return
+
         try:
             # Load the content of info.md
             with open("info.md", "r", encoding="utf-8") as help_file:
@@ -449,6 +455,7 @@ class SSHProxyGUI:
             help_text.insert(tk.END, help_content)
             help_text.config(state=tk.DISABLED)  # Make the text read-only
             help_text.pack(fill=tk.BOTH, expand=True)
+
         except Exception as e:
             logging.error(f"Failed to load help content: {e}")
             messagebox.showerror("Error", f"Could not load help content:\n{e}")
