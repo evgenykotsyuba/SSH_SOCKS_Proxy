@@ -13,6 +13,7 @@ from ssh_client import SSHClient, SSHConnectionError
 from chrome import chrome_browser
 from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
+from password_encryption_decryption import encrypt_password, salt
 
 
 class LogHandler(logging.Handler):
@@ -241,7 +242,8 @@ class SSHProxyGUI:
         auth_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2)
 
         self.password_radio = ttk.Radiobutton(auth_frame, text="Password", variable=self.auth_method_var,
-                                              value="password", command=self.toggle_auth_method)
+                                              value="password",
+                                              command=lambda: (self.toggle_auth_method(), self._reset_password()))
         self.password_radio.pack(side=tk.LEFT)
 
         self.key_radio = ttk.Radiobutton(auth_frame, text="SSH Key", variable=self.auth_method_var,
@@ -255,6 +257,9 @@ class SSHProxyGUI:
             self.settings_vars[key] = var
             entry = ttk.Entry(settings_frame, textvariable=var)
             entry.grid(row=i, column=1, sticky=(tk.W, tk.E), pady=2)
+
+            # Bind changes to reset password
+            entry.bind("<KeyRelease>", lambda _: self._reset_password())
 
         # Password field
         self.password_label = ttk.Label(settings_frame, text="Password:")
@@ -273,6 +278,7 @@ class SSHProxyGUI:
         self.key_var = tk.StringVar(value=os.getenv("SSH_KEY_PATH", ""))
         self.key_entry = ttk.Entry(key_frame, textvariable=self.key_var)
         self.key_entry.grid(column=0, row=0, sticky=(tk.W, tk.E), padx=(0, 5))
+        self.key_entry.bind("<KeyRelease>", lambda _: self._reset_password())
 
         self.browse_btn = ttk.Button(key_frame, text="Browse", command=self.browse_key)
         self.browse_btn.grid(column=1, row=0, sticky=tk.E)
@@ -289,7 +295,7 @@ class SSHProxyGUI:
         language_dropdown.grid(row=len(basic_fields) + 3, column=1, sticky=(tk.W, tk.E), pady=2)
 
         # Bind the event for language selection
-        language_dropdown.bind("<<ComboboxSelected>>", lambda _: self._update_texts())
+        language_dropdown.bind("<<ComboboxSelected>>", lambda _: (self._update_texts(), self._reset_password()))
 
         # Save button
         ttk.Button(settings_frame, text="Save", command=lambda: self.save_settings(settings_window)).grid(
@@ -297,6 +303,12 @@ class SSHProxyGUI:
 
         # Initialize auth method visibility
         self.toggle_auth_method()
+
+    def _reset_password(self):
+        """
+        Clear the password field and reset the password variable when any settings are changed.
+        """
+        self.password_var.set("")
 
     def _update_texts(self):
         """Update button and label texts based on the selected language."""
@@ -487,7 +499,9 @@ class SSHProxyGUI:
             messagebox.showerror("Error", "Selected file does not exist or cannot be accessed.")
 
     def save_settings(self, settings_window):
-        """Save user-defined settings to the configuration."""
+        """
+        Save user-defined settings to the configuration.
+        """
         try:
             # Prepare configuration dictionary
             config_dict = {
@@ -499,33 +513,38 @@ class SSHProxyGUI:
                 'test_url': self.settings_vars['TEST_URL'].get() or 'https://example.com',
                 'http_proxy_port': int(self.settings_vars['HTTP_PROXY_PORT'].get() or 8080),
                 'auth_method': self.auth_method_var.get(),
-                'user_agent': self.settings_vars['USER_AGENT'].get() or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'home_page': self.settings_vars['HOME_PAGE'].get() or 'https://www.whatismybrowser.com/'
+                'user_agent': self.settings_vars[
+                                  'USER_AGENT'].get() or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'home_page': self.settings_vars['HOME_PAGE'].get() or 'https://www.whatismybrowser.com/',
+                'selected_language': self.selected_language.get()
             }
 
-            # Add authentication details based on method
+            # Add authentication details based on the method
             if self.auth_method_var.get() == "password":
-                config_dict['password'] = self.password_var.get()
+                password = self.password_var.get()
+
+                if not password:
+                    raise ValueError("Password cannot be empty for password authentication.")
+
+                # Encrypt the password and save it
+                encrypted_password = encrypt_password(password, salt)
+                config_dict['password'] = encrypted_password.decode('utf-8')  # Store encrypted as string
                 config_dict['key_path'] = None
+
+                # Save encrypted password in environment variable
+                os.environ["SSH_PASSWORD"] = encrypted_password.decode('utf-8')
             else:
-                config_dict['key_path'] = self.key_var.get()
-                config_dict['password'] = None
+                key_path = self.key_var.get()
+                if not key_path or not os.path.exists(key_path):
+                    raise FileNotFoundError("SSH Key file does not exist.")
 
-                # Additional key check
-                if not os.path.exists(config_dict['key_path']):
-                    messagebox.showerror("Error", "SSH Key file does not exist.")
-                    return
+                config_dict['key_path'] = key_path
+                config_dict['password'] = None  # No password required for key-based auth
 
-            config_dict['selected_language'] = self.selected_language.get()
+                # Save key path in environment variable
+                os.environ["SSH_KEY_PATH"] = key_path
 
-            # Update configuration
-            self.config = SSHConfig(**config_dict)
-            ConfigManager.save_config(self.config)
-
-            # Update the title with the new connection name
-            self._update_window_title()
-
-            # Update environment variables (optional, depending on your needs)
+            # Update environment variables for other settings
             os.environ["CONNECTION_NAME"] = config_dict['connection_name']
             os.environ["SSH_HOST"] = config_dict['host']
             os.environ["SSH_PORT"] = str(config_dict['port'])
@@ -536,22 +555,25 @@ class SSHProxyGUI:
             os.environ["AUTH_METHOD"] = config_dict['auth_method']
             os.environ["USER_AGENT"] = config_dict['user_agent']
             os.environ["HOME_PAGE"] = config_dict['home_page']
+            os.environ["LANGUAGE"] = config_dict['selected_language']
 
-            if config_dict['auth_method'] == "password":
-                os.environ["SSH_PASSWORD"] = config_dict.get('password', '')
-            else:
-                os.environ["SSH_KEY_PATH"] = config_dict.get('key_path', '')
+            # Update configuration object and save to file
+            self.config = SSHConfig(**config_dict)
+            ConfigManager.save_config(self.config)
 
-            os.environ["LANGUAGE"] = config_dict.get('selected_language', '')
+            # Update the title with the new connection name
+            self._update_window_title()
 
-            # Show success message
+            # Show success message and close settings window
             messagebox.showinfo("Settings", "Configuration saved successfully!")
-
-            # Close settings window
             settings_window.destroy()
 
+        except ValueError as ve:
+            messagebox.showerror("Validation Error", str(ve))
+        except FileNotFoundError as fe:
+            messagebox.showerror("File Error", str(fe))
         except Exception as e:
-            # Show error message if something goes wrong
+            # Log unexpected errors
             messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
 
     def _check_log_queue(self):

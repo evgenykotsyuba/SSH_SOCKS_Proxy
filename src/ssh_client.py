@@ -4,6 +4,7 @@ import aiohttp
 import logging
 from typing import Optional, Callable
 from aiohttp_socks import ProxyConnector
+from password_encryption_decryption import decrypt_password, salt
 
 
 class SSHConnectionError(Exception):
@@ -48,7 +49,8 @@ class SSHClient:
             }
 
             if self.config.auth_method == 'password':
-                conn_params['password'] = self.config.password
+                dencrypted_password = decrypt_password(self.config.password, salt)
+                conn_params['password'] = dencrypted_password
             else:
                 conn_params['client_keys'] = [self.config.key_path]
 
