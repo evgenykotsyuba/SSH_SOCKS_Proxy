@@ -24,21 +24,18 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
 
-    ua = parse_os_from_user_agent(user_agent)
+    # Define a dictionary of OS and configuration correspondences
+    OS_OVERRIDE_MAP = {
+        'Windows': 'Windows10_Chrome',
+        'iOS': 'iOS_Safari',
+        'MacOS': 'MacOS_Safari',
+        'Android': 'Android_Pixel_Chrome',
+        'Linux': 'Linux_Ubuntu_Firefox'
+    }
 
-    # Script to override the navigator.platform property and other OS detection methods
-    if ua == 'Windows':
-        script_to_override = OVERRIDE.get("Windows10_Chrome")
-    elif ua == 'iOS':
-        script_to_override = OVERRIDE.get("iOS_Safari")
-    elif ua == 'MacOS':
-        script_to_override = OVERRIDE.get("MacOS_Safari")
-    elif ua == 'Android':
-        script_to_override = OVERRIDE.get("Android_Pixel_Chrome")
-    elif ua == 'Linux':
-        script_to_override = OVERRIDE.get("Linux_Ubuntu_Firefox")
-    else:
-        script_to_override = OVERRIDE.get("Unknown")
+    ua = parse_os_from_user_agent(user_agent)
+    # Get configuration from dictionary, if not - use 'Unknown'
+    script_to_override = OVERRIDE.get(OS_OVERRIDE_MAP.get(ua, 'Unknown'))
 
     try:
         # Launch the browser

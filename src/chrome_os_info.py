@@ -7,7 +7,7 @@ OVERRIDE = {
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
-            get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+            get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         });
         
         // Add Do Not Track setting
@@ -22,7 +22,7 @@ OVERRIDE = {
 
         // Override navigator.appVersion
         Object.defineProperty(navigator, 'appVersion', {
-            get: () => '5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+            get: () => '5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         });
         
         // Переопределяем функцию fetch для добавления заголовка Content-Language
@@ -186,7 +186,7 @@ OVERRIDE = {
         // Override some other methods for consistency
         window.navigator.__defineGetter__('platform', () => 'MacIntel');
         window.navigator.__defineGetter__('userAgent', () =>
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36'
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
         );
 
         console.log('Spoofing as macOS successfully applied.');
@@ -199,7 +199,7 @@ OVERRIDE = {
     
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
-            get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+            get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         });
     
         // Override navigator.oscpu
@@ -214,7 +214,7 @@ OVERRIDE = {
     
         // Override navigator.appVersion
         Object.defineProperty(navigator, 'appVersion', {
-            get: () => '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
+            get: () => '5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         });
     
         // Override navigator.vendor
