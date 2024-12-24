@@ -37,7 +37,7 @@ OVERRIDE = {
 
         // Override navigator.vendor
         Object.defineProperty(navigator, 'vendor', {
-            get: () => 'Google Inc.',
+            get: () => 'Apple Computer, Inc.',
         });
 
         // Set navigator.webdriver to false (to prevent automation detection)
@@ -769,9 +769,120 @@ OVERRIDE = {
         console.log('Spoofing as Windows Server 2019 (Internet Explorer 11) successfully applied.');
         """,
     "Unknown": """
-          // Override navigator.vendor
+        // Override navigator.vendor
         Object.defineProperty(navigator, 'vendor', {
             get: () => 'Google Inc.',
         });  
+    """,
+    "iOS_Safari": """
+        // iOS 16 Safari Spoofing
+        Object.defineProperty(navigator, 'platform', {
+            get: () => 'iPhone',
+        });
+        
+        Object.defineProperty(navigator, 'userAgent', {
+            get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        });
+        
+        Object.defineProperty(navigator, 'appVersion', {
+            get: () => '5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+        });
+        
+        Object.defineProperty(navigator, 'vendor', {
+            get: () => 'Apple Computer, Inc.',
+        });
+        
+        Object.defineProperty(navigator, 'doNotTrack', {
+            get: () => '1',
+        });
+        
+        Object.defineProperty(navigator, 'language', {
+            get: () => 'en-US',
+        });
+        
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-US', 'en'],
+        });
+        
+        Object.defineProperty(navigator, 'maxTouchPoints', {
+            get: () => 10, // Typical for iOS devices
+        });
+        
+        Object.defineProperty(navigator, 'deviceMemory', {
+            get: () => 4, // Estimated device memory in GB
+        });
+        
+        Object.defineProperty(window, 'devicePixelRatio', {
+            get: () => 3, // Typical for iPhone Retina screens
+        });
+        
+        // Proxy for screen properties
+        Object.defineProperty(window, 'screen', {
+            get: () => ({
+                width: 375, // Logical resolution for iPhone
+                height: 812,
+                availWidth: 375,
+                availHeight: 812,
+                colorDepth: 24,
+                pixelDepth: 24,
+            }),
+        });
+        
+        Object.defineProperty(window, 'outerWidth', {
+            get: () => 375,
+        });
+        
+        Object.defineProperty(window, 'outerHeight', {
+            get: () => 812,
+        });
+        
+        // Override Date and Time methods
+        const targetTimezone = 'America/New_York'; // Example timezone
+        
+        Date.prototype.getTimezoneOffset = function () {
+            return -300; // UTC-5 in minutes
+        };
+        
+        const originalDateTimeFormat = Intl.DateTimeFormat;
+        window.Intl.DateTimeFormat = function (locales, options) {
+            options = options || {};
+            options.timeZone = targetTimezone;
+            return new originalDateTimeFormat(locales, options);
+        };
+        
+        Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
+            value: function () {
+                return {
+                    locale: 'en-US',
+                    calendar: 'gregory',
+                    numberingSystem: 'latn',
+                    timeZone: targetTimezone,
+                };
+            },
+        });
+        
+        // Block WebGL Fingerprinting
+        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+        WebGLRenderingContext.prototype.getParameter = function (param) {
+            const spoofedParams = {
+                37446: 'Apple Inc.', // UNMASKED_VENDOR_WEBGL
+                37445: 'Apple GPU', // UNMASKED_RENDERER_WEBGL
+            };
+            return spoofedParams[param] || originalGetParameter.call(this, param);
+        };
+        
+        // Block AudioContext Fingerprinting
+        const originalGetChannelData = AudioContext.prototype.getChannelData;
+        AudioContext.prototype.getChannelData = function () {
+            return new Float32Array(128).fill(0);
+        };
+        
+        // Block Canvas Fingerprinting
+        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+        HTMLCanvasElement.prototype.toDataURL = function () {
+            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
+        };
+        
+        console.log('Spoofing as iOS 16 successfully applied.');
     """
 }

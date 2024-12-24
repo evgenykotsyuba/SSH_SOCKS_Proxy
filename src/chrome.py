@@ -29,6 +29,8 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     # Script to override the navigator.platform property and other OS detection methods
     if ua == 'Windows':
         script_to_override = OVERRIDE.get("Windows10_Chrome")
+    elif ua == 'iOS':
+        script_to_override = OVERRIDE.get("iOS_Safari")
     elif ua == 'MacOS':
         script_to_override = OVERRIDE.get("MacOS_Safari")
     elif ua == 'Android':
