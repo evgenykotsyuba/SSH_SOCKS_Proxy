@@ -15,6 +15,8 @@ from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
 from password_encryption_decryption import encrypt_password, salt
 
+from traffic_monitor import PortTrafficMonitor
+
 
 class LogHandler(logging.Handler):
     def __init__(self, log_queue):
@@ -34,7 +36,7 @@ class SSHProxyGUI:
         # Initialize the title dynamically
         self._update_window_title()
 
-        self.root.geometry("800x90")
+        self.root.geometry("880x90")
 
         self.log_queue = queue.Queue()
         self.ssh_client = None
@@ -42,10 +44,20 @@ class SSHProxyGUI:
 
         self.log_enabled = False
 
+        self.traffic_window = None
+        self.traffic_monitor = None
+
         self._setup_logging()
 
         # Initialize selected_language before calling _create_gui()
         self.selected_language = tk.StringVar(value=self.config.selected_language)
+
+        # Initialize asyncio loop for traffic monitoring
+        self.loop = asyncio.new_event_loop()
+        self.traffic_running = False
+
+        self.loop = None
+        self.traffic_task = None
 
         self._create_gui()
         self._check_log_queue()
@@ -111,6 +123,11 @@ class SSHProxyGUI:
         self.http_proxy_btn.bind("<Enter>", lambda event: self.status_var.set("HTTP proxy over SOCKS5"))
         self.http_proxy_btn.bind("<Leave>", lambda event: self.status_var.set(""))
 
+        # Add traffic monitor button
+        self.traffic_btn = ttk.Button(btn_frame, text="Traffic Monitor", command=self._toggle_traffic_monitor,
+                                      state=tk.DISABLED)
+        self.traffic_btn.pack(side=tk.LEFT, padx=5)
+
         self.toggle_logs_btn = ttk.Button(btn_frame, text="Show Logs", command=self._toggle_logs)
         self.toggle_logs_btn.pack(side=tk.LEFT, padx=5)
 
@@ -154,13 +171,13 @@ class SSHProxyGUI:
         if self.log_enabled:
             # Hide logs
             self.log_frame.pack_forget()
-            self.root.geometry("800x90")  # Smaller window
+            self.root.geometry("880x90")  # Smaller window
             self.toggle_logs_btn.config(text=translations["Show Logs"])
             self.log_enabled = False
         else:
             # Show logs
             self.log_frame.pack(fill=tk.BOTH, expand=True, pady=5)
-            self.root.geometry("800x600")  # Larger window
+            self.root.geometry("880x600")  # Larger window
             self.toggle_logs_btn.config(text=translations["Hide Logs"])
             self.log_enabled = True
 
@@ -318,6 +335,7 @@ class SSHProxyGUI:
         self.settings_btn.config(text=translations["Settings"])
         self.chrome_btn.config(text=translations["Chrome"])
         self.http_proxy_btn.config(text=translations["HTTP Proxy"])
+        self.traffic_btn.config(text=translations["Traffic Monitor"])
         self.toggle_logs_btn.config(
             text=translations["Show Logs"] if not self.log_enabled else translations["Hide Logs"])
         self.help_btn.config(text=translations["Help"])
@@ -593,14 +611,165 @@ class SSHProxyGUI:
         self.log_display.see(tk.END)
         self.log_display.config(state=tk.DISABLED)
 
+    #-----------------------
     def _update_gui_state(self, connected: bool):
         self.connect_btn.config(state=tk.NORMAL if not connected else tk.DISABLED)
         self.disconnect_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
         self.settings_btn.config(state=tk.NORMAL if not connected else tk.DISABLED)
+        self.chrome_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
+        self.http_proxy_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
+        self.traffic_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
         self.status_var.set("Connected" if connected else "Not Connected")
-
-        # Update the connection status indicator
         self._draw_connection_indicator(connected)
-
-        # Update the title to reflect the connection status
         self._update_window_title()
+
+    def _create_traffic_window(self):
+        """Create traffic monitoring window"""
+        if self.traffic_window is None:
+            self.traffic_window = tk.Toplevel(self.root)
+            self.traffic_window.title(f"Port {self.config.dynamic_port} Traffic Monitor")
+            self.traffic_window.geometry("400x300")
+            self.traffic_window.protocol("WM_DELETE_WINDOW", self._close_traffic_monitor)
+
+            # Ensure window closes if main window is closed
+            self.traffic_window.transient(self.root)
+
+            # Create traffic monitoring frame with proper layout management
+            main_frame = ttk.Frame(self.traffic_window)
+            main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+            # Stats frame
+            stats_frame = ttk.LabelFrame(main_frame, text="Traffic Statistics")
+            stats_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+
+            # Grid configuration for proper spacing
+            stats_frame.grid_columnconfigure(1, weight=1)
+
+            # Create labels for statistics with better layout
+            self.traffic_labels = {}
+            stats = [
+                ("upload_speed", "Upload Speed:", "0 B/s"),
+                ("download_speed", "Download Speed:", "0 B/s"),
+                ("total_upload", "Total Uploaded:", "0 B"),
+                ("total_download", "Total Downloaded:", "0 B"),
+                ("connections", "Active Connections:", "0")
+            ]
+
+            for i, (key, text, default) in enumerate(stats):
+                ttk.Label(stats_frame, text=text).grid(row=i, column=0, sticky=tk.W, padx=(5, 10), pady=5)
+                label = ttk.Label(stats_frame, text=default)
+                label.grid(row=i, column=1, sticky=tk.E, padx=5, pady=5)
+                self.traffic_labels[key] = label
+
+    def _toggle_traffic_monitor(self):
+        """Toggle traffic monitoring window"""
+        if self.traffic_window is None:
+            self._create_traffic_window()
+            self._start_traffic_monitoring()
+        else:
+            self._close_traffic_monitor()
+
+    def _start_traffic_monitoring(self):
+        """Start traffic monitoring with proper asyncio handling"""
+        if not self.traffic_running:
+            self.traffic_running = True
+
+            # Create new event loop
+            if self.loop is None or self.loop.is_closed():
+                self.loop = asyncio.new_event_loop()
+
+            def run_async_loop():
+                try:
+                    asyncio.set_event_loop(self.loop)
+                    self.traffic_monitor = PortTrafficMonitor(self.config.dynamic_port, self._update_traffic_display)
+                    self.traffic_task = self.loop.create_task(self.traffic_monitor.start_monitoring())
+                    self.loop.run_forever()
+                except Exception as e:
+                    logging.error(f"Error in traffic monitoring loop: {e}")
+                finally:
+                    if not self.loop.is_closed():
+                        self.loop.close()
+
+            self.monitor_thread = threading.Thread(target=run_async_loop, daemon=True)
+            self.monitor_thread.start()
+
+    def _update_traffic_display(self, stats: dict):
+        """Update traffic statistics display with error handling"""
+        if self.traffic_window and not self.traffic_window.winfo_exists():
+            self._close_traffic_monitor()
+            return
+
+        try:
+            if self.traffic_window:
+                self.traffic_window.after(0, self._update_traffic_labels, stats)
+        except tk.TclError:
+            # Handle case where window was closed
+            self._close_traffic_monitor()
+
+    def _update_traffic_labels(self, stats: dict):
+        """Update traffic monitor labels with error handling"""
+        if not self.traffic_labels:
+            return
+
+        try:
+            for key, label in self.traffic_labels.items():
+                if key == "upload_speed":
+                    value = f"{PortTrafficMonitor.format_bytes(stats['upload_speed'])}/s"
+                elif key == "download_speed":
+                    value = f"{PortTrafficMonitor.format_bytes(stats['download_speed'])}/s"
+                elif key == "total_upload":
+                    value = f"{PortTrafficMonitor.format_bytes(stats['total_bytes_sent'])}"
+                elif key == "total_download":
+                    value = f"{PortTrafficMonitor.format_bytes(stats['total_bytes_recv'])}"
+                elif key == "connections":
+                    value = str(stats['active_connections'])
+                else:
+                    continue
+
+                label.config(text=value)
+        except tk.TclError:
+            # Handle case where labels were destroyed
+            self._close_traffic_monitor()
+
+    def _close_traffic_monitor(self):
+        """Close traffic monitoring window and cleanup resources"""
+        try:
+            # First stop the monitoring
+            if self.traffic_monitor:
+                self.traffic_monitor.stop_monitoring()
+                self.traffic_running = False
+
+            # Cancel any running tasks
+            if self.traffic_task and not self.traffic_task.done():
+                self.traffic_task.cancel()
+
+            # Properly stop and close the event loop
+            if self.loop and not self.loop.is_closed():
+                try:
+                    # Schedule the loop to stop
+                    self.loop.call_soon_threadsafe(self.loop.stop)
+
+                    # Wait briefly for the loop to stop
+                    if self.monitor_thread and self.monitor_thread.is_alive():
+                        self.monitor_thread.join(timeout=2)
+
+                    # Now it's safe to close the loop
+                    if not self.loop.is_closed():
+                        self.loop.close()
+                except Exception as e:
+                    logging.error(f"Error closing event loop: {e}")
+                finally:
+                    self.loop = None
+
+            # Clean up the window and labels
+            if self.traffic_window:
+                self.traffic_window.destroy()
+                self.traffic_window = None
+                self.traffic_labels = {}
+
+        except Exception as e:
+            logging.error(f"Error during traffic monitor cleanup: {e}")
+            # Ensure window is destroyed even if other cleanup fails
+            if self.traffic_window:
+                self.traffic_window.destroy()
+                self.traffic_window = None
