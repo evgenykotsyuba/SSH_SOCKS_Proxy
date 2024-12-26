@@ -3,8 +3,7 @@ python-dotenv==1.0.1
 tk
 aiohttp==3.11.7
 aiohttp-socks==0.9.1
-# cryptography>=44.0.0
-# psutil==6.1.0
+psutil==6.1.1
 
 #--- Chrome ---
 selenium==4.27.1
