@@ -45,7 +45,9 @@ class SSHClient:
                 'host': self.config.host,
                 'port': self.config.port,
                 'username': self.config.user,
-                'known_hosts': None
+                'known_hosts': None,
+                'keepalive_interval': 60,  # ServerAliveInterval
+                'keepalive_count_max': 120  # ServerAliveCountMax
             }
 
             if self.config.auth_method == 'password':
