@@ -230,7 +230,7 @@ class SSHProxyGUI:
     def _show_settings(self):
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x430")
+        settings_window.geometry("430x470")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -244,6 +244,8 @@ class SSHProxyGUI:
             ("SSH_PORT", "SSH Port:"),
             ("SSH_USER", "Username:"),
             ("DYNAMIC_PORT", "SOCKS Port:"),
+            ('KEEPALIVE_INTERVAL', 'Keepalive interval:'),
+            ('KEEPALIVE_COUNT_MAX', 'Keepalive count MAX:'),
             ("TEST_URL", "Test SOCKS URL:"),
             ("HTTP_PROXY_PORT", "HTTP Proxy Port:"),
             ("USER_AGENT", "Browser User-Agent:"),
@@ -528,6 +530,8 @@ class SSHProxyGUI:
                 'port': int(self.settings_vars['SSH_PORT'].get() or 22),
                 'user': self.settings_vars['SSH_USER'].get(),
                 'dynamic_port': int(self.settings_vars['DYNAMIC_PORT'].get() or 1080),
+                'keepalive_interval': int(self.settings_vars['KEEPALIVE_INTERVAL'].get() or 60),
+                'keepalive_count_max': int(self.settings_vars['KEEPALIVE_COUNT_MAX'].get() or 120),
                 'test_url': self.settings_vars['TEST_URL'].get() or 'https://example.com',
                 'http_proxy_port': int(self.settings_vars['HTTP_PROXY_PORT'].get() or 8080),
                 'auth_method': self.auth_method_var.get(),
@@ -568,6 +572,8 @@ class SSHProxyGUI:
             os.environ["SSH_PORT"] = str(config_dict['port'])
             os.environ["SSH_USER"] = config_dict['user']
             os.environ["DYNAMIC_PORT"] = str(config_dict['dynamic_port'])
+            os.environ['KEEPALIVE_INTERVAL'] = str(config_dict['keepalive_interval'])
+            os.environ['KEEPALIVE_COUNT_MAX'] = str(config_dict['keepalive_count_max'])
             os.environ["TEST_URL"] = config_dict['test_url']
             os.environ["HTTP_PROXY_PORT"] = str(config_dict['http_proxy_port'])
             os.environ["AUTH_METHOD"] = config_dict['auth_method']

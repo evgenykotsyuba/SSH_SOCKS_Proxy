@@ -37,65 +37,87 @@ class SSHClient:
 
     async def connect(self) -> None:
         """Establishes an SSH connection and configures the SOCKS proxy."""
+        conn_params = None
         try:
-            if self._forwarder:
-                self._forwarder.close()
-                self._forwarder = None
-
-            if self.connection:
-                self.connection.close()
-                self.connection = None
+            # Clean up any existing connection resources
+            await self._cleanup_connection()
 
             logging.info(f"Connecting to {self.config.user}@{self.config.host}")
+
+            # Base connection parameters
             conn_params = {
                 'host': self.config.host,
                 'port': self.config.port,
                 'username': self.config.user,
-                'known_hosts': None,
-                'keepalive_interval': 60,  # ServerAliveInterval
-                'keepalive_count_max': 120  # ServerAliveCountMax
+                'known_hosts': None
             }
 
+            # Add keepalive parameters if they are non-zero
+            if self.config.keepalive_interval != 0:
+                conn_params['keepalive_interval'] = self.config.keepalive_interval
+
+            if self.config.keepalive_count_max != 0:
+                conn_params['keepalive_count_max'] = self.config.keepalive_count_max
+
+            # Configure authentication
             if self.config.auth_method == 'password':
-                decrypted_password = decrypt_password(self.config.password, salt)
-                conn_params['password'] = decrypted_password
+                try:
+                    conn_params['password'] = decrypt_password(self.config.password, salt)
+                except Exception as e:
+                    logging.error(f"Failed to decrypt password: {e}")
+                    raise SSHConnectionError("Password decryption failed")
             else:
+                if not self.config.key_path:
+                    raise SSHConnectionError("SSH key path not provided")
                 conn_params['client_keys'] = [self.config.key_path]
 
-            self.connection = await asyncio.wait_for(
-                asyncssh.connect(**conn_params),
-                timeout=10
-            )
+            # Establish the connection with a timeout
+            try:
+                self.connection = await asyncio.wait_for(
+                    asyncssh.connect(**conn_params),
+                    timeout=10
+                )
+            except asyncio.TimeoutError:
+                raise SSHConnectionError("Connection timed out")
 
-            self._forwarder = await self.connection.forward_socks(
-                listen_port=self.config.dynamic_port,
-                listen_host="localhost"
-            )
+            # Configure the SOCKS proxy
+            try:
+                self._forwarder = await self.connection.forward_socks(
+                    listen_port=self.config.dynamic_port,
+                    listen_host="localhost"
+                )
+            except Exception as e:
+                raise SSHConnectionError(f"Failed to establish SOCKS proxy: {e}")
 
             self.reconnect_attempts = 0
             self._update_status(True)
             logging.info(f"SOCKS proxy established on localhost:{self.config.dynamic_port}")
 
-            # Ждем закрытия форвардера
+            # Wait for the forwarder to close
             await self._forwarder.wait_closed()
 
-        except asyncio.TimeoutError:
-            logging.error("Connection timed out")
-            self._update_status(False)
-            raise SSHConnectionError("Connection timed out")
         except (asyncssh.DisconnectError, OSError) as e:
             logging.error(f"Connection error: {e}")
             self._update_status(False)
             raise SSHConnectionError(f"Connection error: {e}")
+
         finally:
-            if 'password' in conn_params:
+            # Remove sensitive data and clean up resources
+            if conn_params and 'password' in conn_params:
                 conn_params['password'] = None
-            if self._forwarder and not self._forwarder.is_closing():
-                self._forwarder.close()
-            if self.connection and not self.connection.is_closed():
-                self.connection.close()
-            logging.info(f"Disconnected from {self.config.host}")
-            self._update_status(False)
+            await self._cleanup_connection()
+
+    async def _cleanup_connection(self):
+        """Clean up existing connections."""
+        if self._forwarder and not self._forwarder.is_closing():
+            self._forwarder.close()
+            self._forwarder = None
+
+        if self.connection and not self.connection.is_closed():
+            self.connection.close()
+            self.connection = None
+
+        self._update_status(False)
 
     async def manage_connection(self) -> None:
         """Manage the connection and handle reconnection attempts."""

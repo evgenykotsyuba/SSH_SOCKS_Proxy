@@ -7,7 +7,7 @@ import logging
 @dataclass
 class SSHConfig:
     def __init__(self, connection_name='Default', host=None, port=22, user=None, dynamic_port=1080,
-                 auth_method='password', password=None, key_path=None,
+                 auth_method='password', password=None, key_path=None, keepalive_interval=60, keepalive_count_max=120,
                  http_proxy_port=8080, test_url=None, user_agent=None, home_page=None, selected_language='en'):
         self.connection_name = connection_name
         self.host = host
@@ -17,6 +17,8 @@ class SSHConfig:
         self.auth_method = auth_method
         self.password = password
         self.key_path = key_path
+        self.keepalive_interval = keepalive_interval
+        self.keepalive_count_max = keepalive_count_max
         self.test_url = test_url
         self.http_proxy_port = http_proxy_port
         self.user_agent = user_agent
@@ -41,6 +43,8 @@ class ConfigManager:
         HTTP_PROXY_PORT=8080
         SSH_PASSWORD=
         SSH_KEY_PATH=
+        KEEPALIVE_INTERVAL=60
+        KEEPALIVE_COUNT_MAX=120
 
         # Browser Settings
         USER_AGENT=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36
@@ -67,6 +71,8 @@ class ConfigManager:
             auth_method=os.getenv('AUTH_METHOD', 'password'),
             password=os.getenv('SSH_PASSWORD', None),
             key_path=os.getenv('SSH_KEY_PATH', None),
+            keepalive_interval=int(os.getenv('KEEPALIVE_INTERVAL', '60')),
+            keepalive_count_max=int(os.getenv('KEEPALIVE_COUNT_MAX', '120')),
             dynamic_port=int(os.getenv('DYNAMIC_PORT', '1080')),
             test_url=os.getenv('TEST_URL', ''),
             http_proxy_port=int(os.getenv('HTTP_PROXY_PORT', '8080')),
@@ -85,6 +91,8 @@ class ConfigManager:
             'AUTH_METHOD': config.auth_method,
             'SSH_PASSWORD': config.password or '',
             'SSH_KEY_PATH': config.key_path or '',
+            'KEEPALIVE_INTERVAL': str(config.keepalive_interval),
+            'KEEPALIVE_COUNT_MAX': str(config.keepalive_count_max),
             'DYNAMIC_PORT': str(config.dynamic_port),
             'TEST_URL': str(config.test_url),
             'HTTP_PROXY_PORT': str(config.http_proxy_port),
