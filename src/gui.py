@@ -13,19 +13,10 @@ from ssh_client import SSHClient, SSHConnectionError
 from chrome import chrome_browser
 from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
+from logging_handler import LogHandler
 from password_encryption_decryption import encrypt_password, salt
 
 from traffic_monitor import PortTrafficMonitor
-
-
-class LogHandler(logging.Handler):
-    def __init__(self, log_queue):
-        super().__init__()
-        self.log_queue = log_queue
-
-    def emit(self, record):
-        log_entry = self.format(record)
-        self.log_queue.put(log_entry)
 
 
 class SSHProxyGUI:

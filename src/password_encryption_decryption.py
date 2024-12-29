@@ -1,6 +1,6 @@
 from cryptography.fernet import Fernet
 import base64
-import os
+# import os
 
 salt = b'\xa3\xe3\x85h#\x10\xd1\xa7\xeay\x81E\xaaw\xd7\x82'
 # salt = generate_salt()
