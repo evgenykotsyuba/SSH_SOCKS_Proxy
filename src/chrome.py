@@ -20,6 +20,13 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Remove WebDriver flag
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
+
+    # Additional privacy-focused options
+    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--disable-plugins-discovery")
+    chrome_options.add_argument("--disable-bundled-ppapi-flash")
+    chrome_options.add_argument("--disable-plugins-file")
+
     # Disable WebDriver automation detection
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
