@@ -658,13 +658,12 @@ class SSHProxyGUI:
                 label.grid(row=i, column=1, sticky=tk.E, padx=5, pady=5)
                 self.traffic_labels[key] = label
 
-    def _toggle_traffic_monitor(self):
-        """Toggle traffic monitoring window"""
-        if self.traffic_window is None:
-            self._create_traffic_window()
-            self._start_traffic_monitoring()
-        else:
-            self._close_traffic_monitor()
+            # Create button frame
+            btn_frame = ttk.Frame(main_frame)
+            btn_frame.pack(fill=tk.X, pady=5)
+
+            # Store the button frame for later use
+            self.traffic_btn_frame = btn_frame
 
     def _start_traffic_monitoring(self):
         """Start traffic monitoring with proper asyncio handling"""
@@ -679,6 +678,11 @@ class SSHProxyGUI:
                 try:
                     asyncio.set_event_loop(self.loop)
                     self.traffic_monitor = PortTrafficMonitor(self.config.dynamic_port, self._update_traffic_display)
+
+                    # Add reset counters button after monitor is created
+                    if hasattr(self, 'traffic_btn_frame'):
+                        self.traffic_window.after(0, self._add_reset_button)
+
                     self.traffic_task = self.loop.create_task(self.traffic_monitor.start_monitoring())
                     self.loop.run_forever()
                 except Exception as e:
@@ -689,6 +693,50 @@ class SSHProxyGUI:
 
             self.monitor_thread = threading.Thread(target=run_async_loop, daemon=True)
             self.monitor_thread.start()
+
+    def _add_reset_button(self):
+        """Add reset button to traffic window"""
+        if hasattr(self, 'reset_counters_btn'):
+            self.reset_counters_btn.destroy()
+
+        self.reset_counters_btn = ttk.Button(
+            self.traffic_btn_frame,
+            text="Reset Counters",
+            command=self.traffic_monitor.reset_counters
+        )
+        self.reset_counters_btn.pack(side=tk.LEFT, padx=5)
+
+    def _toggle_traffic_monitor(self):
+        """Toggle traffic monitoring window"""
+        if self.traffic_window is None:
+            self._create_traffic_window()
+            self._start_traffic_monitoring()
+        else:
+            self._close_traffic_monitor()
+
+    # def _start_traffic_monitoring(self):
+    #     """Start traffic monitoring with proper asyncio handling"""
+    #     if not self.traffic_running:
+    #         self.traffic_running = True
+    #
+    #         # Create new event loop
+    #         if self.loop is None or self.loop.is_closed():
+    #             self.loop = asyncio.new_event_loop()
+    #
+    #         def run_async_loop():
+    #             try:
+    #                 asyncio.set_event_loop(self.loop)
+    #                 self.traffic_monitor = PortTrafficMonitor(self.config.dynamic_port, self._update_traffic_display)
+    #                 self.traffic_task = self.loop.create_task(self.traffic_monitor.start_monitoring())
+    #                 self.loop.run_forever()
+    #             except Exception as e:
+    #                 logging.error(f"Error in traffic monitoring loop: {e}")
+    #             finally:
+    #                 if not self.loop.is_closed():
+    #                     self.loop.close()
+    #
+    #         self.monitor_thread = threading.Thread(target=run_async_loop, daemon=True)
+    #         self.monitor_thread.start()
 
     def _update_traffic_display(self, stats: dict):
         """Update traffic statistics display with error handling"""

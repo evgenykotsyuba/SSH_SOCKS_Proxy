@@ -24,6 +24,33 @@ class PortTrafficMonitor:
         self._stats_file = f'traffic_stats_{port}.json'
         self._accumulated_traffic = self._load_stats()
 
+    def reset_counters(self):
+        """
+        Resets all traffic counters to zero and saves the zeroed state.
+
+        This includes:
+        - Accumulated traffic statistics
+        - Previous network I/O counters
+        - Previous connection statistics
+        """
+        self._accumulated_traffic = {'bytes_sent': 0, 'bytes_recv': 0}
+        self._previous_stats = {}
+        self._previous_net_io = None
+        self._save_stats()
+
+        if self.update_callback:
+            # Notify callback about the reset
+            self.update_callback({
+                'bytes_sent': 0,
+                'bytes_recv': 0,
+                'total_bytes_sent': 0,
+                'total_bytes_recv': 0,
+                'active_connections': 0,
+                'upload_speed': 0,
+                'download_speed': 0,
+                'connections': {}
+            })
+
     def _load_stats(self) -> dict:
         """
         Loads saved traffic statistics from a file.
@@ -81,7 +108,7 @@ class PortTrafficMonitor:
             port_connections = [
                 conn for conn in connections
                 if (conn.laddr.port == self.port or (
-                    hasattr(conn, 'raddr') and conn.raddr and conn.raddr.port == self.port))
+                        hasattr(conn, 'raddr') and conn.raddr and conn.raddr.port == self.port))
                    and (conn.type == socket.SOCK_STREAM or conn.type == socket.SOCK_DGRAM)
                    and (conn.status == 'ESTABLISHED' or conn.type == socket.SOCK_DGRAM)
             ]
