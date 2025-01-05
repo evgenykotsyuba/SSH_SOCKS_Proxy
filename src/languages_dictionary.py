@@ -13,6 +13,7 @@ TRANSLATIONS = {
         "Help": "Help",
         "Not Connected": "Not Connected",
         "Connected": "Connected",
+        "Reset Counters": "Reset Counters",
     },
     "ru": {
         "Connect": "Подключить",
@@ -28,6 +29,7 @@ TRANSLATIONS = {
         "Help": "Справка",
         "Not Connected": "Не подключен",
         "Connected": "Подключен",
+        "Reset Counters": "Сбросить счетчики",
     },
     "ua": {
         "Connect": "Підключити",
@@ -43,5 +45,6 @@ TRANSLATIONS = {
         "Help": "Допомога",
         "Not Connected": "Не підключено",
         "Connected": "Підключено",
+        "Reset Counters": "Обнулення лічильників",
     }
 }

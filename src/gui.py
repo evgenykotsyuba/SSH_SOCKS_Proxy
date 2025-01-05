@@ -696,12 +696,13 @@ class SSHProxyGUI:
 
     def _add_reset_button(self):
         """Add reset button to traffic window"""
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
         if hasattr(self, 'reset_counters_btn'):
             self.reset_counters_btn.destroy()
 
         self.reset_counters_btn = ttk.Button(
             self.traffic_btn_frame,
-            text="Reset Counters",
+            text=translations["Reset Counters"],
             command=self.traffic_monitor.reset_counters
         )
         self.reset_counters_btn.pack(side=tk.LEFT, padx=5)
