@@ -219,9 +219,10 @@ class SSHProxyGUI:
             self.ssh_client.stop()
 
     def _show_settings(self):
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
         settings_window = tk.Toplevel(self.root)
         settings_window.title("Settings")
-        settings_window.geometry("430x470")
+        settings_window.geometry("600x470")
         settings_window.transient(self.root)
         settings_window.grab_set()
 
@@ -230,33 +231,33 @@ class SSHProxyGUI:
 
         # Basic fields
         basic_fields = [
-            ("CONNECTION_NAME", "Connection Name:"),
-            ("SSH_HOST", "SSH Server:"),
-            ("SSH_PORT", "SSH Port:"),
-            ("SSH_USER", "Username:"),
-            ("DYNAMIC_PORT", "SOCKS Port:"),
-            ('KEEPALIVE_INTERVAL', 'Keepalive interval:'),
-            ('KEEPALIVE_COUNT_MAX', 'Keepalive count MAX:'),
-            ("TEST_URL", "Test SOCKS URL:"),
-            ("HTTP_PROXY_PORT", "HTTP Proxy Port:"),
-            ("USER_AGENT", "Browser User-Agent:"),
-            ("HOME_PAGE", "Browser Home Page:"),
+            ("CONNECTION_NAME", translations["Connection Name:"]),
+            ("SSH_HOST", translations["SSH Server:"]),
+            ("SSH_PORT", translations["SSH Port:"]),
+            ("SSH_USER", translations["Username:"]),
+            ("DYNAMIC_PORT", translations["SOCKS Port:"]),
+            ("KEEPALIVE_INTERVAL", translations["Keepalive interval:"]),
+            ("KEEPALIVE_COUNT_MAX", translations["Keepalive count MAX:"]),
+            ("TEST_URL", translations["Test SOCKS URL:"]),
+            ("HTTP_PROXY_PORT", translations["HTTP Proxy Port:"]),
+            ("USER_AGENT", translations["Browser User-Agent:"]),
+            ("HOME_PAGE", translations["Browser Home Page:"]),
         ]
 
         self.settings_vars = {}
 
         # Authentication method selection
-        ttk.Label(settings_frame, text="Authentication Method:").grid(row=0, column=0, sticky=tk.W, pady=2)
+        ttk.Label(settings_frame, text=translations["Authentication Method:"]).grid(row=0, column=0, sticky=tk.W, pady=2)
         self.auth_method_var = tk.StringVar(value=os.getenv("AUTH_METHOD", "password"))
         auth_frame = ttk.Frame(settings_frame)
         auth_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), pady=2)
 
-        self.password_radio = ttk.Radiobutton(auth_frame, text="Password", variable=self.auth_method_var,
+        self.password_radio = ttk.Radiobutton(auth_frame, text=translations["Password"], variable=self.auth_method_var,
                                               value="password",
                                               command=lambda: (self.toggle_auth_method(), self._reset_password()))
         self.password_radio.pack(side=tk.LEFT)
 
-        self.key_radio = ttk.Radiobutton(auth_frame, text="SSH Key", variable=self.auth_method_var,
+        self.key_radio = ttk.Radiobutton(auth_frame, text=translations["SSH Key"], variable=self.auth_method_var,
                                          value="key", command=self.toggle_auth_method)
         self.key_radio.pack(side=tk.LEFT)
 
@@ -272,14 +273,14 @@ class SSHProxyGUI:
             entry.bind("<KeyRelease>", lambda _: self._reset_password())
 
         # Password field
-        self.password_label = ttk.Label(settings_frame, text="Password:")
+        self.password_label = ttk.Label(settings_frame, text=translations["Password"] + ":")
         self.password_label.grid(row=len(basic_fields) + 1, column=0, sticky=tk.W, pady=2)
         self.password_var = tk.StringVar(value=os.getenv("SSH_PASSWORD", ""))
         self.password_entry = ttk.Entry(settings_frame, textvariable=self.password_var, show="*")
         self.password_entry.grid(row=len(basic_fields) + 1, column=1, sticky=(tk.W, tk.E), pady=2)
 
         # SSH Key field
-        self.key_label = ttk.Label(settings_frame, text="SSH Key:")
+        self.key_label = ttk.Label(settings_frame, text=translations["SSH Key"] + ":")
         self.key_label.grid(row=len(basic_fields) + 2, column=0, sticky=tk.W, pady=2)
 
         key_frame = ttk.Frame(settings_frame)
@@ -298,17 +299,17 @@ class SSHProxyGUI:
         key_frame.columnconfigure(1, weight=0)
 
         # Language selection dropdown
-        ttk.Label(settings_frame, text="Language:").grid(row=len(basic_fields) + 3, column=0, sticky=tk.W, pady=2)
+        ttk.Label(settings_frame, text=translations["Language:"]).grid(row=len(basic_fields) + 3, column=0, sticky=tk.W, pady=2)
         self.selected_language = tk.StringVar(value=self.selected_language.get())  # Default language
         language_dropdown = ttk.Combobox(settings_frame, textvariable=self.selected_language, state="readonly")
-        language_dropdown["values"] = ["en", "ru", "ua"]
+        language_dropdown["values"] = ["en", "ru", "ua", "fr", "es", "cn"]
         language_dropdown.grid(row=len(basic_fields) + 3, column=1, sticky=(tk.W, tk.E), pady=2)
 
         # Bind the event for language selection
         language_dropdown.bind("<<ComboboxSelected>>", lambda _: (self._update_texts(), self._reset_password()))
 
         # Save button
-        ttk.Button(settings_frame, text="Save", command=lambda: self.save_settings(settings_window)).grid(
+        ttk.Button(settings_frame, text=translations["Save"], command=lambda: self.save_settings(settings_window)).grid(
             row=len(basic_fields) + 4, column=0, columnspan=2, pady=10)
 
         # Initialize auth method visibility
@@ -622,6 +623,7 @@ class SSHProxyGUI:
 
     def _create_traffic_window(self):
         """Create traffic monitoring window"""
+        translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
         if self.traffic_window is None:
             self.traffic_window = tk.Toplevel(self.root)
             self.traffic_window.title(f"Port {self.config.dynamic_port} Traffic Monitor")
@@ -636,7 +638,7 @@ class SSHProxyGUI:
             main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
             # Stats frame
-            stats_frame = ttk.LabelFrame(main_frame, text="Traffic Statistics")
+            stats_frame = ttk.LabelFrame(main_frame, text=translations["Traffic Statistics"])
             stats_frame.pack(fill=tk.BOTH, expand=True, pady=5)
 
             # Grid configuration for proper spacing
@@ -645,11 +647,11 @@ class SSHProxyGUI:
             # Create labels for statistics with better layout
             self.traffic_labels = {}
             stats = [
-                ("upload_speed", "Upload Speed:", "0 B/s"),
-                ("download_speed", "Download Speed:", "0 B/s"),
-                ("total_upload", "Total Uploaded:", "0 B"),
-                ("total_download", "Total Downloaded:", "0 B"),
-                ("connections", "Active Connections:", "0")
+                ("upload_speed", translations["Upload Speed:"], "0 B/s"),
+                ("download_speed", translations["Download Speed:"], "0 B/s"),
+                ("total_upload", translations["Total Uploaded:"], "0 B"),
+                ("total_download", translations["Total Downloaded:"], "0 B"),
+                ("connections", translations["Active Connections:"], "0")
             ]
 
             for i, (key, text, default) in enumerate(stats):
