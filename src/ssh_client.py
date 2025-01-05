@@ -109,21 +109,29 @@ class SSHClient:
 
     async def _cleanup_connection(self):
         """Clean up existing connections."""
-        if self._forwarder and not self._forwarder.is_closing():
-            self._forwarder.close()
-            self._forwarder = None
+        try:
+            if self._forwarder:
+                # Instead of checking is_closing(), we'll just close it
+                try:
+                    self._forwarder.close()
+                except Exception as e:
+                    logging.error(f"Error closing forwarder: {e}")
+                self._forwarder = None
 
-        if self.connection and not self.connection.is_closed():
-            self.connection.close()
-            self.connection = None
+            if self.connection:
+                if not self.connection.is_closed():
+                    self.connection.close()
+                self.connection = None
 
-        self._update_status(False)
+            self._update_status(False)
+        except Exception as e:
+            logging.error(f"Error during connection cleanup: {e}")
 
     async def manage_connection(self) -> None:
         """Manage the connection and handle reconnection attempts."""
         while self._running:
             try:
-                if not await self.is_connected():  # Await now valid
+                if not await self.is_connected():
                     self._update_status(False)
                     try:
                         await self.connect()
@@ -204,4 +212,3 @@ class SSHClient:
         self.stop()
         if self.connection:
             await self.connection.wait_closed()
-
