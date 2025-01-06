@@ -30,15 +30,27 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - **Browser Integration**
   - Automatic Chrome browser launch with proxy settings
   - Customizable user agent and home page
+- **Language Support**
+  - Multilingual interface (en, ru, ua, fr, es, cn)
+  - Easy language switching
+- **Proxy Settings**
+  - Support for HTTP proxy over SOCKS
+  - Customizable proxy settings
+  - Traffic monitoring capabilities
 
 ### Logging and Monitoring
 - **Advanced Logging Features**
   - Real-time logging display
   - Scrollable log text area with detailed entries
   - Comprehensive connection status tracking
+  - Traffic monitoring and statistics
 - **Error Handling**
   - Detailed error notifications
   - Graceful error management and recovery
+- **Connection Maintenance**
+  - Keepalive configuration
+  - Auto-reconnect capabilities
+  - Connection health monitoring
 
 ### Technical Highlights
 - **Advanced Architecture**
@@ -49,6 +61,10 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
   - Integrated configuration management
   - Comprehensive error handling
   - Secure connection protocols
+- **Security Features**
+  - Password encryption
+  - Secure key storage
+  - Protected configuration files
 
 ## Authentication Methods
 
@@ -56,6 +72,7 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - Simple and quick setup
 - Directly enter SSH credentials
 - Suitable for quick, temporary connections
+- Encrypted password storage
 
 ### SSH Key Authentication
 - Enhanced Security
@@ -63,6 +80,7 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
   - Secure key-based login mechanism
   - Easy key file selection through file browser
 - Recommended for persistent and secure connections
+- Support for various key formats and encryption standards
 
 ## Use Cases
 
@@ -70,16 +88,19 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - Bypass network restrictions
 - Create secure communication channels
 - Protect sensitive data transmission
+- Implement VPN-like functionality
 
 ### Remote Access
 - Establish secure connections to remote servers
 - Access geo-restricted content
 - Implement network tunneling
+- Secure remote development environment access
 
 ### Development and Testing
 - Test applications through different network configurations
 - Simulate various network environments
 - Develop and debug network-dependent applications
+- Cross-platform testing capabilities
 
 ## Technologies Used
 - **Programming Language**: Python 3.7+
@@ -87,6 +108,9 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - **Asynchronous Programming**: Asyncio
 - **Concurrency**: Threading
 - **Logging**: Python's logging module
+- **Network**: Paramiko SSH library
+- **Security**: cryptography library
+- **Browser Automation**: Selenium WebDriver
 
 ## System Requirements
 - **Minimum Python Version**: 3.7+
@@ -98,12 +122,18 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
   - SSH server access
   - Internet connection
   - Chrome browser (for browser proxy feature)
+  - Minimum 2GB RAM
+  - 100MB free disk space
 
 ## Security Considerations
 - Always use strong, unique passwords or SSH keys
 - Regularly update SSH key pairs
 - Be cautious when using public networks
 - Verify SSH server authenticity before connecting
+- Keep the application and dependencies updated
+- Use firewall rules to restrict SSH access
+- Monitor connection logs regularly
+- Enable traffic monitoring for suspicious activity
 
 ## Installation
 1. Ensure Python 3.7+ is installed
@@ -122,9 +152,32 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - Create a feature branch
 - Submit pull requests
 - Report issues and suggest improvements
+- Follow coding standards and documentation guidelines
+- Include tests for new features
+- Update documentation as needed
+
+## Support
+- GitHub Issues: [Repository Issue Tracker]
+- Email Support: support@sshsocksproxy.com
+- Documentation: [Online Documentation Link]
+- Community Forum: [Forum Link]
+
+## Version History
+- v1.0.0 - Initial release
+- v1.1.0 - Added multilingual support
+- v1.2.0 - Implemented traffic monitoring
+- v1.3.0 - Added HTTP proxy support
+- v1.4.0 - Enhanced security features
 
 ## License
 GNU GENERAL PUBLIC LICENSE, Version 3.
 
 ## Disclaimer
-This tool is intended for legitimate and authorized network access. Users are responsible for compliance with local laws and network policies.
+This tool is intended for legitimate and authorized network access. Users are responsible for compliance with local laws and network policies. The developers are not responsible for any misuse or damage caused by this software.
+
+## Acknowledgments
+Special thanks to:
+- Open source community
+- Contributors and testers
+- Users providing valuable feedback
+- Libraries and tools used in development

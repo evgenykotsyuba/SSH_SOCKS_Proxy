@@ -1,34 +1,50 @@
 # SSH SOCKS Proxy Manager: Installation and Usage Guide
 
 ## Overview
+
 SSH SOCKS Proxy Manager is a Python-based application that simplifies SSH SOCKS proxy connection management. It provides a user-friendly GUI for establishing secure SOCKS proxy connections and launching a pre-configured Chrome browser.
 
 ## Features
+
 - Intuitive graphical interface for SSH proxy configuration
 - Support for password and SSH key authentication
 - Dynamic SOCKS proxy port configuration
 - Integrated Chrome browser launch with proxy settings
 - Comprehensive logging and connection status monitoring
 - Cross-platform compatibility (Linux, macOS, Windows)
+- Real-time traffic monitoring
+- Multilingual interface (en, ru, ua, fr, es, cn)
+- Support for HTTP proxy over SOCKS
+- Password encryption
+- Keepalive configuration for connections
+- Customizable User-Agent and browser homepage
+- Logging system
 
 ## Prerequisites
 
 ### System Requirements
+
 - Python 3.7 or higher
 - pip (Python package manager)
 - SSH server access
 - Chrome browser installed
+- tkinter for GUI
+- Integration with Chrome browser
+- Multilingual support
+- Traffic monitoring
+- HTTP proxy over SOCKS
 
 ### Required System Packages
+
 - Python development tools
 - SSH client libraries
 - Chrome WebDriver
 
 ### Required Python Packages
-Windows - Installing with python package.
 
-Linux - Before running the application, install the following dependencies:
+**Windows** - Installing with Python package.
 
+**Linux** - Before running the application, install the following dependencies:
 ```bash
 pip install tkinter
 ```
@@ -67,40 +83,39 @@ pip install -r requirements.txt
 - Supports .pem and .key file formats
 - Recommended for production environments
 
-## Configuration Parameters
+### Configuration Parameters
 
-### Required Settings
+#### Required Settings
 - SSH Host
 - SSH Port (default: 22)
 - Username
 - Authentication Method
 - Local Dynamic SOCKS Port (default: 1080)
 
-### Optional Settings
+#### Optional Settings
 - Custom User Agent
 - Browser Home Page
 - Test SOCKS URL
+- Keepalive settings
+- HTTP proxy settings
+- Traffic monitoring settings
 
 ## Running the Application
 
-### Launch via Python
+### Launch Methods
 ```bash
+# Launch via Python
 python src/main.py
-```
 
-### Linux Binary Execution
-```bash
+# Linux Binary Execution
 ./dist/ssh_socks_proxy_binary
-```
 
-### Windows Binary Execution
-```cmd
+# Windows Binary Execution
 dist\ssh_socks_proxy_binary.exe
 ```
 
-## Application Workflow
+### Application Workflow
 
-### Connection Process
 1. Open application
 2. Click "Settings"
 3. Configure SSH connection details
@@ -108,11 +123,16 @@ dist\ssh_socks_proxy_binary.exe
 5. Click "Connect"
 6. Monitor connection status in log window
 7. Launch Chrome browser with proxy settings (optional)
+8. Monitor traffic in real-time
+9. Customize User-Agent and homepage
+10. Enable keepalive settings
 
 ## Advanced Configuration
 
 ### Environment Variable Overrides
+
 Set these environment variables to pre-configure settings:
+
 - `SSH_HOST`: SSH server hostname/IP
 - `SSH_PORT`: SSH server port
 - `SSH_USER`: SSH username
@@ -123,6 +143,8 @@ Set these environment variables to pre-configure settings:
 - `TEST_URL`: URL for proxy testing
 - `USER_AGENT`: Browser user agent
 - `HOME_PAGE`: Browser default homepage
+- `KEEPALIVE`: Keepalive settings
+- `HTTP_PROXY`: HTTP proxy settings
 
 ## Security Recommendations
 
@@ -133,12 +155,14 @@ Set these environment variables to pre-configure settings:
 - Regularly rotate SSH credentials
 - Keep application and dependencies updated
 - Use firewall rules to restrict SSH access
+- Encrypt passwords
 
 ### Potential Risks
 - Avoid storing credentials in plain text
 - Do not share SSH keys
 - Be cautious when using public networks
 - Monitor SSH connection logs
+- Monitor traffic for suspicious activity
 
 ## Troubleshooting
 
@@ -148,11 +172,14 @@ Set these environment variables to pre-configure settings:
 - Confirm SSH credentials
 - Validate SSH key file permissions
 - Review application logs
+- Check keepalive settings
+- Verify HTTP proxy settings
 
 ### Debugging
 - Enable verbose logging
 - Check system network configuration
 - Verify Chrome WebDriver compatibility
+- Monitor traffic logs
 
 ## Supported Platforms
 - Linux (Ubuntu, CentOS, Debian)
@@ -160,15 +187,20 @@ Set these environment variables to pre-configure settings:
 - Windows 10/11
 
 ## Contributing
+
 Contributions are welcome! Please submit pull requests or file issues on the GitHub repository.
 
 ## License
-[Specify the project's license]
+
+GNU GENERAL PUBLIC LICENSE, Version 3.
 
 ## Support
+
 For issues, feature requests, or questions:
-- GitHub Issues: [Repository Issue Tracker]
-- Email: [Contact Email]
+
+- GitHub Issues: https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/issues
+- Email: -
 
 ## Acknowledgments
-- Special thanks to open-source libraries and tools used in this project
+
+Special thanks to open-source libraries and tools used in this project.
