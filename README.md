@@ -12,11 +12,11 @@ SSH SOCKS Proxy Manager is a Python-based application that simplifies SSH SOCKS 
 
 ## Use Cases
 
-- Discover 15 practical use cases for the SSH SOCKS Proxy Manager in the [use_cases.md](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/documentation/use_cases.md).
+- Discover 15 practical use cases for the SSH SOCKS Proxy Manager in the [use_cases.md](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/blob/main/documentation/use_cases.md).
 
 ## Installation and Usage
 
-- For detailed installation steps, configuration methods, and usage guidelines, please refer to the [installation.md](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/documentation/installation.md).
+- For detailed installation steps, configuration methods, and usage guidelines, please refer to the [installation.md](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/blob/main/documentation/installation.md).
 
 ## Contributing
 
