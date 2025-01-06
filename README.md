@@ -30,7 +30,7 @@ GNU GENERAL PUBLIC LICENSE, Version 3.
 
 For issues, feature requests, or questions:
 
-- GitHub Issues: https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/issues
+- GitHub Issues: [[Repository Issue Tracker](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/issues)]
 - Email: -
 
 ## Acknowledgments

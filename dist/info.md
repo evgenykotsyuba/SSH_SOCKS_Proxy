@@ -4,6 +4,12 @@
 
 SSH SOCKS Proxy Manager is a desktop application that simplifies establishing and managing SSH SOCKS proxy connections through a user-friendly graphical interface. It provides a robust solution for creating secure, encrypted tunnels through SSH, enabling users to route network traffic securely and bypass network restrictions.
 
+## Purpose
+
+- Anonymize network traffic.
+- Bypass censorship or geoblocks.
+- Change your visible IP address to protect your privacy.
+
 ## Key Features
 
 ### Connection Management
@@ -157,9 +163,9 @@ SSH SOCKS Proxy Manager is a desktop application that simplifies establishing an
 - Update documentation as needed
 
 ## Support
-- GitHub Issues: [Repository Issue Tracker]
-- Email Support: support@sshsocksproxy.com
-- Documentation: [Online Documentation Link]
+- GitHub Issues: [[Repository Issue Tracker](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/issues)]
+- Email Support: -
+- Documentation: [[Online Documentation Link](https://github.com/evgenykotsyuba/SSH_SOCKS_Proxy/tree/main/documentation)]
 - Community Forum: [Forum Link]
 
 ## Version History
