@@ -338,65 +338,60 @@ class SSHProxyGUI:
     def _run_http_proxy(self):
         try:
             translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
-            socks_port = self.config.dynamic_port  # Extract the SOCKS port from the configuration
-            http_port = self.config.http_proxy_port  # Extract the HTTP proxy port from the configuration
+            socks_port = self.config.dynamic_port
+            http_port = self.config.http_proxy_port
 
-            def start_http_proxy():
-                # Create and start the HTTP proxy
-                proxy = SOCKStoHTTPProxy(http_port=http_port, socks_port=socks_port)
-                proxy.start()  # Start the proxy server
+            # Create and start the HTTP proxy
+            self.proxy = SOCKStoHTTPProxy(http_port=http_port, socks_port=socks_port)
 
-            # Start the proxy server in a separate thread to allow asynchronous operation
-            threading.Thread(target=start_http_proxy, daemon=True).start()
+            # Start the proxy server in a separate thread
+            self.proxy_thread = threading.Thread(target=self.proxy.start, daemon=True)
+            self.proxy_thread.start()
 
             logging.info(f"HTTP Proxy started on port {http_port} with SOCKS Proxy connection on port {socks_port}")
 
-            # Enable the button to disconnect the proxy
-            self.http_proxy_btn.config(text=translations["Disconnect Proxy"], command=self._close_http_proxy())
+            # Update button state and command
+            self.http_proxy_btn.config(
+                text=translations["Disconnect Proxy"],
+                command=self._close_http_proxy
+            )
 
         except ValueError as e:
             logging.error(f"Error starting the HTTP Proxy: {e}")
         except Exception as e:
             logging.error(f"Unknown error: {e}")
+            logging.error(traceback.format_exc())
 
-    def _close_http_proxy(self):  # The function does not work correctly
+    def _close_http_proxy(self):
         """Disconnect HTTP Proxy."""
         try:
             translations = TRANSLATIONS.get(self.selected_language.get(), TRANSLATIONS["en"])
-            # Disable the button to prevent repeated presses
+
+            # Temporarily disable the button to prevent multiple clicks
             self.http_proxy_btn.config(state=tk.DISABLED)
 
-            # Stop the proxy server if it exists
-            if hasattr(self, 'proxy'):
-                try:
-                    # Set stop flag
-                    self.proxy._stop_event.set()
+            if hasattr(self, 'proxy') and self.proxy:
+                # Stop the proxy server
+                self.proxy.stop()
 
-                    # Trying to stop proxy server
-                    self.proxy.stop()
+                # Wait for the thread to finish if it exists
+                if hasattr(self, 'proxy_thread') and self.proxy_thread.is_alive():
+                    self.proxy_thread.join(timeout=2)
 
-                    logging.info("HTTP Proxy disconnected successfully.")
-                except Exception as e:
-                    logging.error(f"Error stopping HTTP Proxy: {e}")
-                    logging.error(traceback.format_exc())
+                # Remove references
+                self.proxy = None
+                self.proxy_thread = None
 
-                # Removing proxy link
-                del self.proxy
-
-            # Restore button state
-            self.http_proxy_btn.config(
-                text=translations["HTTP Proxy"],
-                command=self._run_http_proxy,
-                state=tk.NORMAL
-            )
+                logging.info("HTTP Proxy disconnected successfully")
 
         except Exception as e:
             logging.error(f"Error during HTTP Proxy disconnection: {e}")
             logging.error(traceback.format_exc())
 
-            # Guaranteed button state restoration
+        finally:
+            # Always restore button state
             self.http_proxy_btn.config(
-                text="HTTP Proxy",
+                text=translations["HTTP Proxy"],
                 command=self._run_http_proxy,
                 state=tk.NORMAL
             )
