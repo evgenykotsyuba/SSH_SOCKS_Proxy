@@ -17,3 +17,4 @@
 
 - [vpnjantit](https://www.vpnjantit.com/free-ssh-server-status)
 - [freevpn](https://www.freevpn.us/ssh-tunnel/#gsc.tab=0)
+- [vpnhack](https://vpnhack.com/ssh/)
