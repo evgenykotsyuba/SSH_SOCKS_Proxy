@@ -15,6 +15,7 @@ from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
 from logging_handler import LogHandler
 from password_encryption_decryption import encrypt_password, salt
+from protocol_baner import run_check_banner
 
 from traffic_monitor import PortTrafficMonitor
 
@@ -190,6 +191,9 @@ class SSHProxyGUI:
     def _run_connection(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+
+        # Show SSH server banner
+        run_check_banner(self.config.host, self.config.port)
 
         try:
             self.ssh_client = SSHClient(self.config, status_callback=self._update_connection_status)
@@ -604,7 +608,6 @@ class SSHProxyGUI:
         self.log_display.see(tk.END)
         self.log_display.config(state=tk.DISABLED)
 
-    #-----------------------
     def _update_gui_state(self, connected: bool):
         self.connect_btn.config(state=tk.NORMAL if not connected else tk.DISABLED)
         self.disconnect_btn.config(state=tk.DISABLED if not connected else tk.NORMAL)
@@ -711,30 +714,6 @@ class SSHProxyGUI:
             self._start_traffic_monitoring()
         else:
             self._close_traffic_monitor()
-
-    # def _start_traffic_monitoring(self):
-    #     """Start traffic monitoring with proper asyncio handling"""
-    #     if not self.traffic_running:
-    #         self.traffic_running = True
-    #
-    #         # Create new event loop
-    #         if self.loop is None or self.loop.is_closed():
-    #             self.loop = asyncio.new_event_loop()
-    #
-    #         def run_async_loop():
-    #             try:
-    #                 asyncio.set_event_loop(self.loop)
-    #                 self.traffic_monitor = PortTrafficMonitor(self.config.dynamic_port, self._update_traffic_display)
-    #                 self.traffic_task = self.loop.create_task(self.traffic_monitor.start_monitoring())
-    #                 self.loop.run_forever()
-    #             except Exception as e:
-    #                 logging.error(f"Error in traffic monitoring loop: {e}")
-    #             finally:
-    #                 if not self.loop.is_closed():
-    #                     self.loop.close()
-    #
-    #         self.monitor_thread = threading.Thread(target=run_async_loop, daemon=True)
-    #         self.monitor_thread.start()
 
     def _update_traffic_display(self, stats: dict):
         """Update traffic statistics display with error handling"""
