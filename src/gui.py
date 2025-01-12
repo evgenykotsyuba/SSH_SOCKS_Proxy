@@ -13,7 +13,7 @@ from ssh_client import SSHClient, SSHConnectionError
 from chrome import chrome_browser
 from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
-from logging_handler import LogHandler
+from logging_handler import ColoredLogQueue, ColoredLogHandler, ColorMapping
 from password_encryption_decryption import encrypt_password, salt
 from protocol_baner import run_check_banner
 
@@ -21,8 +21,9 @@ from traffic_monitor import PortTrafficMonitor
 
 
 class SSHProxyGUI:
-    def __init__(self, root):
+    def __init__(self, root, log_queue):
         self.root = root
+        self.log_queue = log_queue
         self.config = ConfigManager.load_config()
 
         # Initialize the title dynamically
@@ -30,7 +31,6 @@ class SSHProxyGUI:
 
         self.root.geometry("880x90")
 
-        self.log_queue = queue.Queue()
         self.ssh_client = None
         self.connection_thread = None
 
@@ -48,11 +48,40 @@ class SSHProxyGUI:
         self.loop = asyncio.new_event_loop()
         self.traffic_running = False
 
-        self.loop = None
-        self.traffic_task = None
-
         self._create_gui()
         self._check_log_queue()
+        #----------
+        # self.root = root
+        # self.config = ConfigManager.load_config()
+        #
+        # # Initialize the title dynamically
+        # self._update_window_title()
+        #
+        # self.root.geometry("880x90")
+        #
+        # self.log_queue = queue.Queue()
+        # self.ssh_client = None
+        # self.connection_thread = None
+        #
+        # self.log_enabled = False
+        #
+        # self.traffic_window = None
+        # self.traffic_monitor = None
+        #
+        # self._setup_logging()
+        #
+        # # Initialize selected_language before calling _create_gui()
+        # self.selected_language = tk.StringVar(value=self.config.selected_language)
+        #
+        # # Initialize asyncio loop for traffic monitoring
+        # self.loop = asyncio.new_event_loop()
+        # self.traffic_running = False
+        #
+        # self.loop = None
+        # self.traffic_task = None
+        #
+        # self._create_gui()
+        # self._check_log_queue()
 
     def _update_window_title(self):
         """Update the window title based on connection status and configuration."""
@@ -80,7 +109,7 @@ class SSHProxyGUI:
         logger.addHandler(file_handler)
 
         # Add a handler for the interface
-        handler = LogHandler(self.log_queue)
+        handler = ColoredLogHandler(self.log_queue)
         handler.setFormatter(logging.Formatter('%(message)s'))
         logger.addHandler(handler)
 
@@ -128,10 +157,18 @@ class SSHProxyGUI:
 
         # Log display
         self.log_frame = ttk.LabelFrame(main_frame, text="Logs")
-        self.log_display = scrolledtext.ScrolledText(self.log_frame, height=10, wrap=tk.WORD)
-        self.log_display.pack(fill=tk.BOTH, expand=True)
+        self.log_frame.pack_forget()  # Initially hidden
+
+        # Create log display with scrollbar
+        self.log_display = ColoredLogQueue(
+            self.log_frame,
+            height=10,
+            width=80,  # Увеличиваем ширину для лучшей читаемости
+            wrap=tk.WORD,
+            font=('Courier', 9)  # Используем моноширинный шрифт
+        )
+        self.log_display.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         self.log_display.config(state=tk.DISABLED)
-        self.log_frame.pack_forget()  # Hide the log panel during initialization
 
         # Status bar
         self.status_frame = ttk.Frame(main_frame)
@@ -592,21 +629,27 @@ class SSHProxyGUI:
             messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
 
     def _check_log_queue(self):
-        """Update the log display with new log messages."""
+        """Update the log display with new colored log messages."""
+        if not hasattr(self, 'log_display'):
+            self.root.after(100, self._check_log_queue)
+            return
+
         try:
             while True:
-                log_msg = self.log_queue.get_nowait()
-                self._append_log(log_msg)
+                # Get message and level from queue
+                message, level = self.log_queue.get_nowait()
+                color = ColorMapping.GUI_COLORS.get(level, '#000000')  # Default to black if level not found
+                self.log_display.append_colored_text(message, color)
         except queue.Empty:
             pass
         finally:
             self.root.after(100, self._check_log_queue)
 
-    def _append_log(self, message):
-        self.log_display.config(state=tk.NORMAL)
-        self.log_display.insert(tk.END, message + '\n')
-        self.log_display.see(tk.END)
-        self.log_display.config(state=tk.DISABLED)
+    # def _append_log(self, message):
+    #     self.log_display.config(state=tk.NORMAL)
+    #     self.log_display.insert(tk.END, message + '\n')
+    #     self.log_display.see(tk.END)
+    #     self.log_display.config(state=tk.DISABLED)
 
     def _update_gui_state(self, connected: bool):
         self.connect_btn.config(state=tk.NORMAL if not connected else tk.DISABLED)
