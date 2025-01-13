@@ -4,6 +4,7 @@ tk
 aiohttp==3.11.7
 aiohttp-socks==0.9.1
 psutil==6.1.1
+colorama==0.4.6
 
 #--- Chrome ---
 selenium==4.27.1
