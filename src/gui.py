@@ -38,6 +38,7 @@ class SSHProxyGUI:
 
         self.traffic_window = None
         self.traffic_monitor = None
+        self.traffic_task = None
 
         self._setup_logging()
 
@@ -50,38 +51,9 @@ class SSHProxyGUI:
 
         self._create_gui()
         self._check_log_queue()
-        #----------
-        # self.root = root
-        # self.config = ConfigManager.load_config()
-        #
-        # # Initialize the title dynamically
-        # self._update_window_title()
-        #
-        # self.root.geometry("880x90")
-        #
-        # self.log_queue = queue.Queue()
-        # self.ssh_client = None
-        # self.connection_thread = None
-        #
-        # self.log_enabled = False
-        #
-        # self.traffic_window = None
-        # self.traffic_monitor = None
-        #
-        # self._setup_logging()
-        #
-        # # Initialize selected_language before calling _create_gui()
-        # self.selected_language = tk.StringVar(value=self.config.selected_language)
-        #
-        # # Initialize asyncio loop for traffic monitoring
-        # self.loop = asyncio.new_event_loop()
-        # self.traffic_running = False
-        #
+
+        # Test memo
         # self.loop = None
-        # self.traffic_task = None
-        #
-        # self._create_gui()
-        # self._check_log_queue()
 
     def _update_window_title(self):
         """Update the window title based on connection status and configuration."""
