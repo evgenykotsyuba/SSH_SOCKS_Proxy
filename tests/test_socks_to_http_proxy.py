@@ -27,16 +27,17 @@ class TestSOCKStoHTTPProxy(unittest.TestCase):
     def setUp(self):
         self.socks_host = 'localhost'
         self.http_host = 'localhost'
-        self.socks_port = get_free_port()
-        self.http_port = get_free_port()
+        self.socks_port = self._get_free_port()
+        self.http_port = self._get_free_port()
 
-        # Создание mock SOCKS сервера
+        # Create mock SOCKS server with improved error handling
         self.mock_socks_server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.mock_socks_server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.mock_socks_server.bind((self.socks_host, self.socks_port))
         self.mock_socks_server.listen(1)
+        self.mock_socks_server.settimeout(1.0)
 
-        # Запуск прокси в отдельном потоке
+        # Start proxy with proper initialization
         self.proxy = SOCKStoHTTPProxy(
             socks_host=self.socks_host,
             socks_port=self.socks_port,
@@ -47,24 +48,24 @@ class TestSOCKStoHTTPProxy(unittest.TestCase):
         self.proxy_thread.daemon = True
         self.proxy_thread.start()
 
-        # Ожидание запуска прокси
-        time.sleep(0.1)
+        # Wait for proxy startup
+        time.sleep(0.2)
 
     def tearDown(self):
         try:
-            if hasattr(self, 'proxy') and self.proxy:
+            if hasattr(self, 'proxy'):
                 self.proxy.stop()
-            if hasattr(self, 'mock_socks_server') and self.mock_socks_server:
+            if hasattr(self, 'mock_socks_server'):
                 self.mock_socks_server.close()
-            if hasattr(self, 'proxy_thread') and self.proxy_thread.is_alive():
+            if hasattr(self, 'proxy_thread'):
                 self.proxy_thread.join(timeout=1.0)
         except Exception as e:
             logging.error(f"Error during tearDown: {e}")
-        finally:
-            # Убедитесь, что все потоки завершены
-            for thread in threading.enumerate():
-                if thread != threading.current_thread() and thread.is_alive():
-                    logging.warning(f"Thread {thread.name} is still alive")
+
+    def _get_free_port(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind(('', 0))
+            return sock.getsockname()[1]
 
     @contextmanager
     def create_test_socket(self):
@@ -85,36 +86,66 @@ class TestSOCKStoHTTPProxy(unittest.TestCase):
             self.fail(f"Proxy connection test failed: {str(e)}")
 
     def test_proxy_availability(self):
-        """Test 2: Check proxy availability and request handling"""
+        """Test proxy availability with improved Windows compatibility"""
 
-        def mock_socks_response():
-            conn, _ = self.mock_socks_server.accept()
-            # Send SOCKS handshake response
-            conn.send(b'\x05\x00')
-            # Receive connection request
-            conn.recv(1024)
-            # Send connection success response
-            conn.send(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
-            # Send mock HTTP response
-            conn.send(b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK')
-            conn.close()
+        def mock_socks_handler():
+            try:
+                conn, _ = self.mock_socks_server.accept()
+                conn.settimeout(1.0)
 
-        # Start mock SOCKS server response handler
-        socks_thread = threading.Thread(target=mock_socks_response)
+                # SOCKS handshake
+                conn.send(b'\x05\x00')
+                conn.recv(1024)  # Connection request
+
+                # Send success response
+                conn.send(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
+
+                # Send HTTP response with proper headers
+                response = (
+                    b'HTTP/1.1 200 OK\r\n'
+                    b'Content-Length: 2\r\n'
+                    b'Connection: close\r\n'
+                    b'\r\n'
+                    b'OK'
+                )
+                conn.send(response)
+                time.sleep(0.1)  # Wait for data to be sent
+                conn.close()
+            except Exception as e:
+                logging.error(f"Mock SOCKS handler error: {e}")
+
+        socks_thread = threading.Thread(target=mock_socks_handler)
         socks_thread.daemon = True
         socks_thread.start()
 
         try:
-            # Test HTTP request through proxy
-            with self.create_test_socket() as sock:
-                sock.connect((self.http_host, self.http_port))
-                # Send HTTP request
-                sock.send(b'GET http://example.com/ HTTP/1.1\r\nHost: example.com\r\n\r\n')
-                # Receive response
-                response = sock.recv(1024)
-                self.assertIn(b'200 OK', response, "Proxy should return 200 OK response")
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client:
+                client.settimeout(2.0)
+                client.connect((self.http_host, self.http_port))
+
+                request = (
+                    b'GET / HTTP/1.1\r\n'
+                    b'Host: example.com\r\n'
+                    b'Connection: close\r\n'
+                    b'\r\n'
+                )
+                client.send(request)
+
+                response = b''
+                while True:
+                    try:
+                        chunk = client.recv(1024)
+                        if not chunk:
+                            break
+                        response += chunk
+                    except socket.timeout:
+                        break
+
+                self.assertIn(b'200 OK', response, "Expected 200 OK response")
         except Exception as e:
             self.fail(f"Proxy availability test failed: {str(e)}")
+        finally:
+            socks_thread.join(timeout=1.0)
 
     def test_proxy_shutdown(self):
         """Test 3: Verify clean proxy shutdown"""
