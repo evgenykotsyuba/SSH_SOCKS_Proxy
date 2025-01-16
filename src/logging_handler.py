@@ -1,5 +1,6 @@
 import logging
 import tkinter as tk
+from tkinter import scrolledtext
 from colorama import Fore, Style, init
 
 # Initialize colorama
@@ -51,7 +52,7 @@ class ColoredLogHandler(logging.Handler):
             self.handleError(record)
 
 
-class ColoredLogQueue(tk.scrolledtext.ScrolledText):
+class ColoredLogQueue(scrolledtext.ScrolledText):
     """A custom ScrolledText widget that supports colored text output."""
 
     def __init__(self, parent, *args, **kwargs):
