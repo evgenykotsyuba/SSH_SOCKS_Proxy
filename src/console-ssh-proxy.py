@@ -5,7 +5,10 @@ import datetime
 import threading
 import signal
 import sys
+import argparse
+import time
 
+from concurrent.futures import ThreadPoolExecutor
 from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
 from socks_to_http_proxy import SOCKStoHTTPProxy
@@ -148,18 +151,39 @@ class ConsoleSSHProxy:
             socks_port = self.config.dynamic_port
             http_port = self.config.http_proxy_port
 
+            if not self._verify_socks_proxy(socks_port):
+                raise RuntimeError(f"SOCKS proxy not running on port {socks_port}")
+
             def run_proxy():
-                self.http_proxy = SOCKStoHTTPProxy(http_port=http_port, socks_port=socks_port)
-                self.http_proxy.start()
+                try:
+                    self.http_proxy = SOCKStoHTTPProxy(
+                        http_port=http_port,
+                        socks_port=socks_port
+                        # Remove bind_address and timeout parameters
+                    )
+                    self.http_proxy.start()
+                except Exception as e:
+                    logging.error(f"HTTP proxy thread error: {e}")
+                    self.http_proxy = None
+                    raise
 
             proxy_thread = threading.Thread(target=run_proxy, daemon=True)
             proxy_thread.start()
-            logging.info(f"HTTP Proxy started on port {http_port}")
-            print(f"HTTP Proxy started on port {http_port}")
+
+            time.sleep(1)
+            if not self._verify_http_proxy(http_port):
+                raise RuntimeError(f"HTTP proxy failed to start on port {http_port}")
+
+            logging.info(f"HTTP Proxy successfully started on port {http_port}")
+            print(f"HTTP Proxy successfully started on port {http_port}")
             return True
+
         except Exception as e:
             logging.error(f"Failed to start HTTP proxy: {e}")
             print(f"Failed to start HTTP proxy: {e}")
+            if self.http_proxy:
+                self.http_proxy.stop()
+                self.http_proxy = None
             return False
 
     async def show_connection_status(self):
@@ -258,10 +282,114 @@ class ConsoleSSHProxy:
             if not self.monitor_running:  # Только в обычном режиме ждём Enter
                 input("\nPress Enter to continue...")
 
+    async def start_services(self, connect_http=False):
+        """Start services based on command line arguments"""
+        if connect_http:
+            # First establish SSH connection
+            await self.connect()
+
+            # If SSH connection is successful, start HTTP proxy
+            if self.ssh_client and await self.ssh_client.is_connected():
+                # Give some time for SSH connection to stabilize
+                await asyncio.sleep(2)
+                # Run HTTP proxy in a separate thread with proper synchronization
+                with ThreadPoolExecutor() as executor:
+                    await asyncio.get_event_loop().run_in_executor(
+                        executor, self.start_http_proxy
+                    )
+            else:
+                logging.error("Cannot start HTTP proxy: SSH connection not established")
+                print("Cannot start HTTP proxy: SSH connection not established")
+
+    def _verify_socks_proxy(self, port):
+        """Verify SOCKS proxy is running and accepting connections"""
+        import socket
+        try:
+            with socket.create_connection(('127.0.0.1', port), timeout=2):
+                return True
+        except (socket.timeout, ConnectionRefusedError):
+            return False
+
+    def _verify_http_proxy(self, port):
+        """Verify HTTP proxy is running and accepting connections"""
+        import socket
+        try:
+            with socket.create_connection(('127.0.0.1', port), timeout=2):
+                return True
+        except (socket.timeout, ConnectionRefusedError):
+            return False
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='SSH SOCKS and HTTP Proxy Manager')
+    parser.add_argument('--connect-http', action='store_true',
+                       help='Start SSH connection and HTTP proxy together')
+    parser.add_argument('--interactive', action='store_true',
+                       help='Start in interactive menu mode')
+    return parser.parse_args()
+
+
+async def run_services(proxy, args):
+    """Асинхронная функция для запуска сервисов"""
+    try:
+        await proxy.start_services(connect_http=args.connect_http)
+
+        # Keep the program running while services are active
+        while True:
+            if proxy.ssh_client or proxy.http_proxy:
+                await asyncio.sleep(1)
+            else:
+                break
+    except asyncio.CancelledError:
+        # Proper handling of task cancellation
+        if proxy.ssh_client:
+            await proxy.ssh_client.stop()
+        if proxy.http_proxy:
+            proxy.http_proxy.stop()
+        raise
+
 
 def main():
+    args = parse_arguments()
     proxy = ConsoleSSHProxy()
-    proxy.show_menu()
+
+    if len(sys.argv) == 1 or args.interactive:
+        proxy.show_menu()
+    else:
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+            print("\nStarting services. Press Ctrl+C to exit.")
+
+            # Create and run the main task
+            main_task = loop.create_task(run_services(proxy, args))
+
+            try:
+                loop.run_until_complete(main_task)
+            except KeyboardInterrupt:
+                print("\nShutting down...")
+                # Cancel the main task
+                main_task.cancel()
+                # Wait for all tasks to complete
+                loop.run_until_complete(asyncio.gather(main_task, return_exceptions=True))
+
+            # Exit if no services are running
+            if not (proxy.ssh_client or proxy.http_proxy):
+                print("No services are running. Exiting...")
+                proxy.stop()
+
+        finally:
+            try:
+                # Cancel remaining tasks
+                remaining_tasks = asyncio.all_tasks(loop)
+                for task in remaining_tasks:
+                    task.cancel()
+                # Wait for all remaining tasks to complete
+                loop.run_until_complete(asyncio.gather(*remaining_tasks, return_exceptions=True))
+            finally:
+                if loop and not loop.is_closed():
+                    loop.close()
 
 
 if __name__ == "__main__":
