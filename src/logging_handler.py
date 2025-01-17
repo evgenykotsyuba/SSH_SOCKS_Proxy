@@ -10,8 +10,8 @@ init(autoreset=True)
 class ColorMapping:
     """Defines color mappings for both console and GUI."""
     CONSOLE_COLORS = {
-        logging.DEBUG: Fore.BLUE,
-        logging.INFO: Fore.GREEN,
+        logging.INFO: Fore.GREEN + Style.BRIGHT,
+        logging.DEBUG: Fore.BLUE ,
         logging.WARNING: Fore.YELLOW,
         logging.ERROR: Fore.RED,
         logging.CRITICAL: Fore.RED + Style.BRIGHT,
@@ -19,7 +19,7 @@ class ColorMapping:
 
     GUI_COLORS = {
         logging.DEBUG: '#0000FF',  # Blue
-        logging.INFO: '#008000',  # Green
+        logging.INFO: '#102D00',  # Dark Green
         logging.WARNING: '#FFA500',  # Orange
         logging.ERROR: '#FF0000',  # Red
         logging.CRITICAL: '#8B0000',  # Dark Red
