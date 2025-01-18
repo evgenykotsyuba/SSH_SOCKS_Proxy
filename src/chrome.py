@@ -21,6 +21,23 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
 
+    # Enhanced WebRTC disabling options
+    chrome_options.add_argument("--disable-webrtc")
+    chrome_options.add_argument("--enforce-webrtc-ip-permission-check")
+    chrome_options.add_argument("--force-webrtc-ip-handling-policy=disable_non_proxied_udp")
+
+    # Set WebRTC policies through preferences
+    prefs = {
+        "webrtc.ip_handling_policy": "disable_non_proxied_udp",
+        "webrtc.multiple_routes_enabled": False,
+        "webrtc.nonproxied_udp_enabled": False,
+        "webrtc.ipv6_default_handling_policy": "disable_non_proxied_udp",
+        "webrtc.ice_candidate_policy": "none",
+        "webrtc.ice_candidate_pool_size": 0,
+        "webrtc.enabled": False
+    }
+    chrome_options.add_experimental_option("prefs", prefs)
+
     # Additional privacy-focused options
     chrome_options.add_argument("--disable-plugins")
     chrome_options.add_argument("--disable-plugins-discovery")
@@ -53,6 +70,41 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": script_to_override
         })
+
+        # Enhanced WebRTC blocking via JavaScript
+        webrtc_disable_script = """
+        function disableWebRTC() {
+            // Override WebRTC constructors
+            window.RTCPeerConnection = undefined;
+            window.RTCDataChannel = undefined;
+            window.RTCSessionDescription = undefined;
+            window.RTCIceCandidate = undefined;
+            window.mozRTCPeerConnection = undefined;
+            window.webkitRTCPeerConnection = undefined;
+
+            // Disable media devices API
+            if (navigator.mediaDevices) {
+                navigator.mediaDevices.getUserMedia = undefined;
+                navigator.mediaDevices.getDisplayMedia = undefined;
+            }
+
+            // Legacy APIs
+            navigator.getUserMedia = undefined;
+            navigator.webkitGetUserMedia = undefined;
+            navigator.mozGetUserMedia = undefined;
+            navigator.msGetUserMedia = undefined;
+
+            // Additional WebRTC-related APIs
+            window.MediaStreamTrack = undefined;
+            window.RTCRtpReceiver = undefined;
+            window.RTCRtpSender = undefined;
+        }
+        disableWebRTC();
+
+        // Monitor and re-apply if needed
+        setInterval(disableWebRTC, 1000);
+        """
+        driver.execute_script(webrtc_disable_script)
 
         # Navigate to the specified home page
         driver.get(home_page)
