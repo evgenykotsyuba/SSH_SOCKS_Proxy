@@ -21,20 +21,31 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
 
+    # Font fingerprinting protection
+    chrome_options.add_argument("--disable-remote-fonts")  # Disable remote font loading
+    chrome_options.add_argument("--font-render-hinting=none")  # Disable font hinting
+
     # Enhanced WebRTC disabling options
     chrome_options.add_argument("--disable-webrtc")
     chrome_options.add_argument("--enforce-webrtc-ip-permission-check")
     chrome_options.add_argument("--force-webrtc-ip-handling-policy=disable_non_proxied_udp")
 
-    # Set WebRTC policies through preferences
+    # Set WebRTC and font preferences
     prefs = {
+        # WebRTC settings
         "webrtc.ip_handling_policy": "disable_non_proxied_udp",
         "webrtc.multiple_routes_enabled": False,
         "webrtc.nonproxied_udp_enabled": False,
         "webrtc.ipv6_default_handling_policy": "disable_non_proxied_udp",
         "webrtc.ice_candidate_policy": "none",
         "webrtc.ice_candidate_pool_size": 0,
-        "webrtc.enabled": False
+        "webrtc.enabled": False,
+
+        # Font fingerprinting protection
+        "webkit.webprefs.fonts_enabled": False,
+        "webkit.webprefs.default_font_size": 16,
+        "webkit.webprefs.default_fixed_font_size": 16,
+        "browser.display.use_document_fonts": 0
     }
     chrome_options.add_experimental_option("prefs", prefs)
 
@@ -71,40 +82,133 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
             "source": script_to_override
         })
 
-        # Enhanced WebRTC blocking via JavaScript
-        webrtc_disable_script = """
-        function disableWebRTC() {
-            // Override WebRTC constructors
-            window.RTCPeerConnection = undefined;
-            window.RTCDataChannel = undefined;
-            window.RTCSessionDescription = undefined;
-            window.RTCIceCandidate = undefined;
-            window.mozRTCPeerConnection = undefined;
-            window.webkitRTCPeerConnection = undefined;
+        # Canvas fingerprinting protection script
+        canvas_protection_script = """
+        (function() {
+            // Store original functions
+            const originalGetContext = HTMLCanvasElement.prototype.getContext;
+            const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+            const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+            const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
 
-            // Disable media devices API
-            if (navigator.mediaDevices) {
-                navigator.mediaDevices.getUserMedia = undefined;
-                navigator.mediaDevices.getDisplayMedia = undefined;
+            // Helper to add subtle noise to canvas data
+            function addNoise(data) {
+                const noise = 5;  // Small noise value
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.max(0, Math.min(255, data[i] + (Math.random() * 2 - 1) * noise));     // Red
+                    data[i+1] = Math.max(0, Math.min(255, data[i+1] + (Math.random() * 2 - 1) * noise)); // Green
+                    data[i+2] = Math.max(0, Math.min(255, data[i+2] + (Math.random() * 2 - 1) * noise)); // Blue
+                    // Alpha channel remains unchanged
+                }
+                return data;
             }
 
-            // Legacy APIs
-            navigator.getUserMedia = undefined;
-            navigator.webkitGetUserMedia = undefined;
-            navigator.mozGetUserMedia = undefined;
-            navigator.msGetUserMedia = undefined;
+            // Override getContext
+            HTMLCanvasElement.prototype.getContext = function(type, attributes) {
+                const context = originalGetContext.call(this, type, attributes);
+                if (context && (type === '2d' || type === 'webgl' || type === 'experimental-webgl')) {
+                    // Add noise to text rendering
+                    const originalFillText = context.fillText;
+                    context.fillText = function(...args) {
+                        const result = originalFillText.apply(this, args);
+                        // Add subtle randomization to text position
+                        this.translate((Math.random() * 2 - 1) * 0.5, (Math.random() * 2 - 1) * 0.5);
+                        return result;
+                    };
+                }
+                return context;
+            };
 
-            // Additional WebRTC-related APIs
-            window.MediaStreamTrack = undefined;
-            window.RTCRtpReceiver = undefined;
-            window.RTCRtpSender = undefined;
-        }
-        disableWebRTC();
+            // Override toDataURL
+            HTMLCanvasElement.prototype.toDataURL = function(...args) {
+                const context = this.getContext('2d');
+                if (context) {
+                    const imageData = context.getImageData(0, 0, this.width, this.height);
+                    const pixels = imageData.data;
+                    addNoise(pixels);
+                    context.putImageData(imageData, 0, 0);
+                }
+                return originalToDataURL.apply(this, args);
+            };
 
-        // Monitor and re-apply if needed
-        setInterval(disableWebRTC, 1000);
+            // Override toBlob
+            HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
+                const context = this.getContext('2d');
+                if (context) {
+                    const imageData = context.getImageData(0, 0, this.width, this.height);
+                    const pixels = imageData.data;
+                    addNoise(pixels);
+                    context.putImageData(imageData, 0, 0);
+                }
+                return originalToBlob.call(this, callback, ...args);
+            };
+
+            // Override getImageData
+            CanvasRenderingContext2D.prototype.getImageData = function(...args) {
+                const imageData = originalGetImageData.apply(this, args);
+                imageData.data = addNoise(imageData.data);
+                return imageData;
+            };
+
+            // Notify attempts to access canvas
+            console.warn("Canvas fingerprinting protection active");
+        })();
         """
-        driver.execute_script(webrtc_disable_script)
+
+        # Font fingerprinting protection via JavaScript
+        font_protection_script = """
+        // Override font-related APIs
+        function protectFonts() {
+            // Override font enumeration
+            Object.defineProperty(document, 'fonts', {
+                get: () => ({
+                    ready: Promise.resolve(),
+                    check: () => false,
+                    load: () => Promise.reject(),
+                    addEventListener: () => {},
+                    removeEventListener: () => {}
+                })
+            });
+
+            // Standardize font measurement
+            if (HTMLCanvasElement.prototype.measureText) {
+                const originalMeasureText = HTMLCanvasElement.prototype.measureText;
+                HTMLCanvasElement.prototype.measureText = function(text) {
+                    return {
+                        width: text.length * 8,
+                        actualBoundingBoxAscent: 8,
+                        actualBoundingBoxDescent: 2,
+                        fontBoundingBoxAscent: 8,
+                        fontBoundingBoxDescent: 2
+                    };
+                };
+            }
+
+            // Override font loading
+            if (window.FontFace) {
+                window.FontFace = function() {
+                    return {
+                        load: () => Promise.reject(),
+                        loaded: Promise.reject(),
+                        status: 'error',
+                        family: 'sans-serif'
+                    };
+                };
+            }
+        }
+        protectFonts();
+
+        // Monitor and reapply protection
+        setInterval(protectFonts, 1000);
+        """
+
+        # Execute both protection scripts
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": canvas_protection_script
+        })
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": font_protection_script
+        })
 
         # Navigate to the specified home page
         driver.get(home_page)

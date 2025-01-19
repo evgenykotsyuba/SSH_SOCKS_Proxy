@@ -3,7 +3,7 @@ OVERRIDE = {
         // Override navigator properties
         Object.defineProperty(navigator, 'platform', { get: () => 'MacIntel' });
         Object.defineProperty(navigator, 'userAgent', {
-            get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
         });
         Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -126,7 +126,7 @@ OVERRIDE = {
         // Override navigator properties
         Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
         Object.defineProperty(navigator, 'userAgent', {
-            get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
         });
         Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -305,12 +305,12 @@ OVERRIDE = {
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
-            get: () => 'Mozilla/5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.139 Mobile Safari/537.36',
+            get: () => 'Mozilla/5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36',
         });
 
         // Override navigator.appVersion
         Object.defineProperty(navigator, 'appVersion', {
-            get: () => '5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.139 Mobile Safari/537.36',
+            get: () => '5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36',
         });
 
         // Override navigator.vendor
@@ -404,7 +404,7 @@ OVERRIDE = {
         // Override some other methods for consistency
         window.navigator.__defineGetter__('platform', () => 'Linux armv8l');
         window.navigator.__defineGetter__('userAgent', () =>
-            'Mozilla/5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.139 Mobile Safari/537.36'
+            'Mozilla/5.0 (Linux; Android 15; Pixel) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Mobile Safari/537.36'
         );
 
         console.log('Spoofing as Android 15 (Pixel) successfully applied.');
