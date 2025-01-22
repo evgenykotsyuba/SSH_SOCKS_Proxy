@@ -8,8 +8,31 @@ from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
 
 
+def language_accept_params(language_setting: str) -> str:
+    """
+    Returns the Accept-Language header value for a given language code.
+
+    Args:
+        language_setting (str): Two-letter language code (e.g., 'en', 'ru', 'fr')
+
+    Returns:
+        str: Formatted Accept-Language header value or "en-US,en;q=0.9" as fallback
+    """
+    language_map = {
+        'en': 'en-US,en;q=0.9',
+        'ru': 'ru-RU,ru;q=0.9',
+        'ua': 'uk-UA,uk;q=0.9',
+        'fr': 'fr-FR,fr;q=0.9',
+        'es': 'es-ES,es;q=0.9',
+        'cn': 'zh-CN,zh;q=0.9'
+    }
+
+    # Convert input to lowercase and get value with fallback to English
+    return language_map.get(language_setting.lower(), 'en-US,en;q=0.9')
+
+
 def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent: str, home_page: str,
-                                   custom_title: str):
+                                   custom_title: str, language_setting: str):
     """Launches Chrome with SOCKS5 proxy settings and sets a custom title."""
     # Chrome options
     chrome_options = Options()
@@ -20,6 +43,14 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Remove WebDriver flag
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
+
+    # Get language settings using the language_accept_params function
+    accept_language = language_accept_params(language_setting)
+    lang_code = language_setting.lower()
+
+    # Add language settings
+    chrome_options.add_argument(f"--lang={lang_code}")
+    chrome_options.add_argument(f"--accept-language={accept_language}")
 
     # Font fingerprinting protection
     chrome_options.add_argument("--disable-remote-fonts")  # Disable remote font loading
@@ -45,7 +76,10 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         "webkit.webprefs.fonts_enabled": False,
         "webkit.webprefs.default_font_size": 16,
         "webkit.webprefs.default_fixed_font_size": 16,
-        "browser.display.use_document_fonts": 0
+        "browser.display.use_document_fonts": 0,
+
+        # Language preferences
+        "intl.accept_languages": accept_language
     }
     chrome_options.add_experimental_option("prefs", prefs)
 
@@ -202,12 +236,32 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         setInterval(protectFonts, 1000);
         """
 
-        # Execute both protection scripts
+        # Updated language configuration script
+        language_config_script = f"""
+        // Override navigator.language and navigator.languages
+        Object.defineProperty(navigator, 'language', {{
+            get: () => '{lang_code}'
+        }});
+
+        Object.defineProperty(navigator, 'languages', {{
+            get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
+        }});
+
+        // Override Accept-Language header
+        Object.defineProperty(navigator, 'acceptLanguages', {{
+            get: () => '{accept_language}'
+        }});
+        """
+
+        # Execute protection scripts
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": canvas_protection_script
         })
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": font_protection_script
+        })
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": language_config_script
         })
 
         # Navigate to the specified home page
@@ -224,12 +278,17 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         raise
 
 
-def chrome_browser(socks_port: int, user_agent: str, home_page: str, custom_title: str):
+def chrome_browser(socks_port: int, user_agent: str, home_page: str, custom_title: str, language_setting: str):
     """Launches the Chrome browser with SOCKS proxy and sets a custom title."""
     socks_host = 'localhost'
     try:
         # Launch the browser and return the driver for control
-        driver = launch_chrome_with_socks_proxy(socks_host, socks_port, user_agent, home_page, custom_title)
+        driver = launch_chrome_with_socks_proxy(socks_host,
+                                                socks_port,
+                                                user_agent,
+                                                home_page,
+                                                custom_title,
+                                                language_setting)
         logging.info("Chrome browser launched successfully.")
         return driver
     except Exception as e:

@@ -133,8 +133,6 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'deviceMemory', { get: () => 16 });
         Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-        Object.defineProperty(navigator, 'language', { get: () => 'en-EN' });
-        Object.defineProperty(navigator, 'languages', { get: () => ['en-EN', 'en'] });
     
         // Disable plugins and mimeTypes
         Object.defineProperty(navigator, 'plugins', { get: () => new PluginArray() });
@@ -333,15 +331,6 @@ OVERRIDE = {
             get: () => 8, // Typical number of CPU cores for modern Android devices
         });
 
-        // Override navigator.language and navigator.languages
-        Object.defineProperty(navigator, 'language', {
-            get: () => 'en-US',
-        });
-
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['en-US', 'en'],
-        });
-
         // Proxy for window.screen
         Object.defineProperty(window, 'screen', {
             get: () => ({
@@ -464,15 +453,6 @@ OVERRIDE = {
             get: () => 8, // Typical number of CPU cores for modern iPads
         });
 
-        // Override navigator.language and navigator.languages
-        Object.defineProperty(navigator, 'language', {
-            get: () => 'en-US',
-        });
-
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['en-US', 'en'],
-        });
-
         // Proxy for window.screen
         Object.defineProperty(window, 'screen', {
             get: () => ({
@@ -593,15 +573,6 @@ OVERRIDE = {
         // Override navigator.hardwareConcurrency
         Object.defineProperty(navigator, 'hardwareConcurrency', {
             get: () => 4, // Common for Windows Server virtual machines
-        });
-
-        // Override navigator.language and navigator.languages
-        Object.defineProperty(navigator, 'language', {
-            get: () => 'en-US',
-        });
-
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['en-US'],
         });
 
         // Proxy for window.screen
@@ -735,14 +706,6 @@ OVERRIDE = {
 
         Object.defineProperty(navigator, 'doNotTrack', {
             get: () => '1',
-        });
-
-        Object.defineProperty(navigator, 'language', {
-            get: () => 'en-US',
-        });
-
-        Object.defineProperty(navigator, 'languages', {
-            get: () => ['en-US', 'en'],
         });
 
         Object.defineProperty(navigator, 'maxTouchPoints', {
