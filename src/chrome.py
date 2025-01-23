@@ -330,7 +330,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
 
                 Date.prototype.toString = function() {{
                     const date = new originalDate(this.valueOf());
-                    return date.toLocaleString('en-US', {{
+                    return date.toLocaleString('{accept_language}', {{
                         timeZone: tzConfig.name,
                         hour12: false,
                         weekday: 'short',
