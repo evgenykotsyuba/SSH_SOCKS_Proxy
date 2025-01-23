@@ -7,11 +7,11 @@ OVERRIDE = {
         });
         Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    
+
         // Disable plugins and mimeTypes
         Object.defineProperty(navigator, 'plugins', { get: () => new PluginArray() });
         Object.defineProperty(navigator, 'mimeTypes', { get: () => new MimeTypeArray() });
-    
+
         // Override clipboard API
         Object.defineProperty(navigator, 'clipboard', {
             get: () => ({
@@ -19,13 +19,13 @@ OVERRIDE = {
                 readText: () => Promise.resolve(''),
             }),
         });
-    
+
         // Randomize Canvas Fingerprinting
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
         HTMLCanvasElement.prototype.toDataURL = function (...args) {
             return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
         };
-    
+
         const originalGetContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function(type, attributes) {
             const context = originalGetContext.call(this, type, attributes);
@@ -42,7 +42,7 @@ OVERRIDE = {
             }
             return context;
         };
-    
+
         // Randomize WebGL Fingerprinting
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
@@ -52,7 +52,7 @@ OVERRIDE = {
             };
             return spoofedParams[param] || originalGetParameter.call(this, param);
         };
-    
+
         // Block font enumeration
         Object.defineProperty(document, 'fonts', {
             get: () => ({
@@ -60,7 +60,7 @@ OVERRIDE = {
                 size: 0,
             }),
         });
-    
+
         // Override screen properties
         Object.defineProperty(window, 'screen', {
             get: () => ({
@@ -72,9 +72,7 @@ OVERRIDE = {
                 pixelDepth: 24,
             }),
         });
-    
-        // Override timezone to UTC+0
-        Date.prototype.getTimezoneOffset = function() { return 0; };
+
         console.log('macOS fingerprint protection applied.');
     """,
     "Windows10_Chrome": """
@@ -83,7 +81,7 @@ OVERRIDE = {
         if (originalRTCPeerConnection) {
             window.RTCPeerConnection = function(...args) {
                 const pc = new originalRTCPeerConnection(...args);
-    
+
                 // Override addIceCandidate to block public IPs
                 const originalAddIceCandidate = pc.addIceCandidate;
                 pc.addIceCandidate = function(candidate, ...rest) {
@@ -93,7 +91,7 @@ OVERRIDE = {
                     }
                     return originalAddIceCandidate.apply(pc, [candidate, ...rest]);
                 };
-    
+
                 // Override setLocalDescription to filter ICE candidates
                 const originalSetLocalDescription = pc.setLocalDescription;
                 pc.setLocalDescription = function(description, ...rest) {
@@ -105,16 +103,16 @@ OVERRIDE = {
                     }
                     return originalSetLocalDescription.apply(pc, [description, ...rest]);
                 };
-    
+
                 return pc;
             };
         }
-    
+
         // Block public IP leaks in RTCDataChannel
         Object.defineProperty(navigator, 'connection', {
             get: () => null
         });
-    
+
         // Additional WebRTC Protection
         Object.defineProperty(navigator, 'mediaDevices', {
             get: () => ({
@@ -122,7 +120,7 @@ OVERRIDE = {
                 getUserMedia: () => Promise.reject(new Error('Blocked by WebRTC Protection'))
             })
         });
-    
+
         // Override navigator properties
         Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
         Object.defineProperty(navigator, 'userAgent', {
@@ -133,11 +131,11 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'deviceMemory', { get: () => 16 });
         Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-    
+
         // Disable plugins and mimeTypes
         Object.defineProperty(navigator, 'plugins', { get: () => new PluginArray() });
         Object.defineProperty(navigator, 'mimeTypes', { get: () => new MimeTypeArray() });
-    
+
         // Block font enumeration
         Object.defineProperty(document, 'fonts', {
             get: () => ({
@@ -145,13 +143,13 @@ OVERRIDE = {
                 size: 0,
             }),
         });
-    
+
         // Randomize Canvas Fingerprinting
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
         HTMLCanvasElement.prototype.toDataURL = function (...args) {
             return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
         };
-    
+
         const originalGetContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function(type, attributes) {
             const context = originalGetContext.call(this, type, attributes);
@@ -168,7 +166,7 @@ OVERRIDE = {
             }
             return context;
         };
-    
+
         // Randomize WebGL Fingerprinting
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
@@ -178,19 +176,7 @@ OVERRIDE = {
             };
             return spoofedParams[param] || originalGetParameter.call(this, param);
         };
-    
-        // Timezone spoofing
-        const targetTimezone = 'Europe/London'; // UTC+0
-        Date.prototype.getTimezoneOffset = function() { return 0; };
-        const originalDateTimeFormat = Intl.DateTimeFormat;
-        window.Intl.DateTimeFormat = function(locales, options) {
-            if(options === undefined) {
-                options = {};
-            }
-            options.timeZone = targetTimezone;
-            return new originalDateTimeFormat(locales, options);
-        };
-    
+
         // Proxy for screen properties
         Object.defineProperty(window, 'screen', {
             get: () => ({
@@ -202,9 +188,9 @@ OVERRIDE = {
                 pixelDepth: 24,
             }),
         });
-    
+
         Object.defineProperty(window, 'devicePixelRatio', { get: () => 1 });
-    
+
         console.log('Windows 10 fingerprint protection applied.');
     """,
     "Linux_Ubuntu_Firefox": """
@@ -212,23 +198,23 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'platform', {
             get: () => 'Linux x86_64',
         });
-    
+
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
             get: () => 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:115.0) Gecko/20100101 Firefox/115.0',
         });
-    
+
         // Set navigator.webdriver to false to prevent automation detection
         Object.defineProperty(navigator, 'webdriver', {
             get: () => false,
         });
-    
+
         // Block Canvas Fingerprinting
         const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
         HTMLCanvasElement.prototype.toDataURL = function (...args) {
             return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
         };
-    
+
         const originalGetContext = HTMLCanvasElement.prototype.getContext;
         HTMLCanvasElement.prototype.getContext = function(type, attributes) {
             const context = originalGetContext.call(this, type, attributes);
@@ -244,7 +230,7 @@ OVERRIDE = {
             }
             return context;
         };
-    
+
         // Block WebGL Fingerprinting
         const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
         WebGLRenderingContext.prototype.getParameter = function(param) {
@@ -254,7 +240,7 @@ OVERRIDE = {
             };
             return spoofedParams[param] || originalGetParameter.call(this, param);
         };
-    
+
         // Block WebGL debug extensions
         const originalGetExtension = WebGLRenderingContext.prototype.getExtension;
         WebGLRenderingContext.prototype.getExtension = function(name) {
@@ -264,7 +250,7 @@ OVERRIDE = {
             }
             return originalGetExtension.call(this, name);
         };
-    
+
         // Hide fonts
         const originalFonts = document.fonts;
         Object.defineProperty(document, 'fonts', {
@@ -273,7 +259,7 @@ OVERRIDE = {
                 size: 0
             }),
         });
-    
+
         console.log('Fingerprint protection applied.');
         """,
     "Android_Pixel_Chrome": """
@@ -738,31 +724,6 @@ OVERRIDE = {
 
         Object.defineProperty(window, 'outerHeight', {
             get: () => 812,
-        });
-
-        // Override Date and Time methods
-        const targetTimezone = 'America/New_York'; // Example timezone
-
-        Date.prototype.getTimezoneOffset = function () {
-            return -300; // UTC-5 in minutes
-        };
-
-        const originalDateTimeFormat = Intl.DateTimeFormat;
-        window.Intl.DateTimeFormat = function (locales, options) {
-            options = options || {};
-            options.timeZone = targetTimezone;
-            return new originalDateTimeFormat(locales, options);
-        };
-
-        Object.defineProperty(Intl.DateTimeFormat.prototype, 'resolvedOptions', {
-            value: function () {
-                return {
-                    locale: 'en-US',
-                    calendar: 'gregory',
-                    numberingSystem: 'latn',
-                    timeZone: targetTimezone,
-                };
-            },
         });
 
         // Block WebGL Fingerprinting
