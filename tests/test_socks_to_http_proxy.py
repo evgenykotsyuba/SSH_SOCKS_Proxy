@@ -1,4 +1,4 @@
-# Example run: python -Wd -X tracemalloc=5 -m unittest tests/test_socks_to_http_proxy.py -v
+# Example test run: python -Wd -X tracemalloc=5 -m unittest tests/test_socks_to_http_proxy.py -v
 
 import os
 import sys
@@ -11,10 +11,13 @@ import logging
 from unittest.mock import patch, MagicMock
 from contextlib import contextmanager
 
+# Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
-src_path = os.path.join(project_root, 'src')
-sys.path.insert(0, src_path)
+
+# Add project root and src directory to Python path
+sys.path.insert(0, project_root)
+sys.path.insert(0, os.path.join(project_root, 'src'))
 
 from socks_to_http_proxy import SOCKStoHTTPProxy
 

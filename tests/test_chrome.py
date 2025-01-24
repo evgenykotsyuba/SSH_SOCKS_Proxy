@@ -1,5 +1,4 @@
-# Run test
-# python -m unittest discover -v -s tests -p "test_chrome.py"
+# Example test run: python -m unittest discover -v -s tests -p "test_chrome.py"
 
 import unittest
 from unittest.mock import patch, MagicMock
