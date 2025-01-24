@@ -24,7 +24,8 @@ def language_accept_params(language_setting: str) -> str:
         'ua': 'uk-UA,uk;q=0.9',
         'fr': 'fr-FR,fr;q=0.9',
         'es': 'es-ES,es;q=0.9',
-        'cn': 'zh-CN,zh;q=0.9'
+        'cn': 'zh-CN,zh;q=0.9',
+        'de': 'de-DE,de;q=0.9'
     }
 
     # Convert input to lowercase and get value with fallback to English
@@ -71,6 +72,11 @@ def timezone_spoofing_params(language_setting: str) -> dict:
             'name': 'Asia/Shanghai',
             'offset': -480,  # -8:00
             'display': 'China Standard Time'
+        },
+        'de': {
+            'name': 'Europe/Berlin',
+            'offset': -60,  # -1:00
+            'display': 'Central European Standard Time'
         }
     }
 

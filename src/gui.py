@@ -315,7 +315,7 @@ class SSHProxyGUI:
         ttk.Label(settings_frame, text=translations["Language:"]).grid(row=len(basic_fields) + 3, column=0, sticky=tk.W, pady=2)
         self.selected_language = tk.StringVar(value=self.selected_language.get())  # Default language
         language_dropdown = ttk.Combobox(settings_frame, textvariable=self.selected_language, state="readonly")
-        language_dropdown["values"] = ["en", "ru", "ua", "fr", "es", "cn"]
+        language_dropdown["values"] = ["en", "ru", "ua", "fr", "es", "cn", "de"]
         language_dropdown.grid(row=len(basic_fields) + 3, column=1, sticky=(tk.W, tk.E), pady=2)
 
         # Bind the event for language selection
