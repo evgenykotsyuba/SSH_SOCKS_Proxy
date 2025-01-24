@@ -8,83 +8,83 @@ from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
 
 
-def language_accept_params(language_setting: str) -> str:
+def get_locale_configuration(language_setting: str) -> dict:
     """
-    Returns the Accept-Language header value for a given language code.
+    Returns a comprehensive locale configuration for a given language code.
 
     Args:
         language_setting (str): Two-letter language code (e.g., 'en', 'ru', 'fr')
 
     Returns:
-        str: Formatted Accept-Language header value or "en-US,en;q=0.9" as fallback
+        dict: Dictionary containing language, timezone, and locale configurations
     """
     language_map = {
-        'en': 'en-US,en;q=0.9',
-        'ru': 'ru-RU,ru;q=0.9',
-        'ua': 'uk-UA,uk;q=0.9',
-        'fr': 'fr-FR,fr;q=0.9',
-        'es': 'es-ES,es;q=0.9',
-        'cn': 'zh-CN,zh;q=0.9',
-        'de': 'de-DE,de;q=0.9'
-    }
-
-    # Convert input to lowercase and get value with fallback to English
-    return language_map.get(language_setting.lower(), 'en-US,en;q=0.9')
-
-
-def timezone_spoofing_params(language_setting: str) -> dict:
-    """
-    Returns the timezone configuration for a given language code.
-
-    Args:
-        language_setting (str): Two-letter language code (e.g., 'en', 'ru', 'fr')
-
-    Returns:
-        dict: Dictionary containing timezone name, offset and display name
-    """
-    timezone_map = {
         'en': {
-            'name': 'America/Los_Angeles',
-            'offset': 480,  # +8:00 for PST
-            'display': 'Pacific Standard Time'
+            'accept_language': 'en-US,en;q=0.9',
+            'timezone': {
+                'name': 'America/Los_Angeles',
+                'offset': 480,
+                'display': 'Pacific Standard Time'
+            }
         },
         'ru': {
-            'name': 'Europe/Moscow',
-            'offset': -180,  # -3:00
-            'display': 'Moscow Standard Time'
+            'accept_language': 'ru-RU,ru;q=0.9',
+            'timezone': {
+                'name': 'Europe/Moscow',
+                'offset': -180,
+                'display': 'Moscow Standard Time'
+            }
         },
         'ua': {
-            'name': 'Europe/Kiev',
-            'offset': -120,  # -2:00
-            'display': 'Eastern European Standard Time'
+            'accept_language': 'uk-UA,uk;q=0.9',
+            'timezone': {
+                'name': 'Europe/Kiev',
+                'offset': -120,
+                'display': 'Eastern European Standard Time'
+            }
         },
         'fr': {
-            'name': 'Europe/Paris',
-            'offset': -60,  # -1:00
-            'display': 'Central European Standard Time'
+            'accept_language': 'fr-FR,fr;q=0.9',
+            'timezone': {
+                'name': 'Europe/Paris',
+                'offset': -60,
+                'display': 'Central European Standard Time'
+            }
         },
         'es': {
-            'name': 'Europe/Madrid',
-            'offset': -60,  # -1:00
-            'display': 'Central European Standard Time'
+            'accept_language': 'es-ES,es;q=0.9',
+            'timezone': {
+                'name': 'Europe/Madrid',
+                'offset': -60,
+                'display': 'Central European Standard Time'
+            }
         },
         'cn': {
-            'name': 'Asia/Shanghai',
-            'offset': -480,  # -8:00
-            'display': 'China Standard Time'
+            'accept_language': 'zh-CN,zh;q=0.9',
+            'timezone': {
+                'name': 'Asia/Shanghai',
+                'offset': -480,
+                'display': 'China Standard Time'
+            }
         },
         'de': {
-            'name': 'Europe/Berlin',
-            'offset': -60,  # -1:00
-            'display': 'Central European Standard Time'
+            'accept_language': 'de-DE,de;q=0.9',
+            'timezone': {
+                'name': 'Europe/Berlin',
+                'offset': -60,
+                'display': 'Central European Standard Time'
+            }
         }
     }
 
-    # Default to UTC if language not found
-    return timezone_map.get(language_setting.lower(), {
-        'name': 'UTC',
-        'offset': 0,
-        'display': 'Coordinated Universal Time'
+    # Default to English if language not found
+    return language_map.get(language_setting.lower(), {
+        'accept_language': 'en-US,en;q=0.9',
+        'timezone': {
+            'name': 'UTC',
+            'offset': 0,
+            'display': 'Coordinated Universal Time'
+        }
     })
 
 
@@ -101,9 +101,11 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
 
-    # Get language settings using the language_accept_params function
-    accept_language = language_accept_params(language_setting)
+    # Get comprehensive locale configuration
+    locale_config = get_locale_configuration(language_setting)
+    accept_language = locale_config['accept_language']
     lang_code = language_setting.lower()
+    tz_config = locale_config['timezone']
 
     # Add language settings
     chrome_options.add_argument(f"--lang={lang_code}")
@@ -172,9 +174,6 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": script_to_override
         })
-
-        # Get timezone for spoofing
-        tz_config = timezone_spoofing_params(language_setting)
 
         # Canvas fingerprinting protection script
         canvas_protection_script = """

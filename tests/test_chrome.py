@@ -1,4 +1,5 @@
-# python -m unittest tests/test_chrome.py
+# Run test
+# python -m unittest discover -v -s tests -p "test_chrome.py"
 
 import unittest
 from unittest.mock import patch, MagicMock
@@ -7,15 +8,17 @@ import os
 import sys
 
 
+# Get the absolute path to the project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
-src_path = os.path.join(project_root, 'src')
-sys.path.insert(0, src_path)
+
+# Add project root and src directory to Python path
+sys.path.insert(0, project_root)
+sys.path.insert(0, os.path.join(project_root, 'src'))
 
 # Import the functions to test
 from chrome import (
-    language_accept_params,
-    timezone_spoofing_params,
+    get_locale_configuration,
     launch_chrome_with_socks_proxy,
     chrome_browser
 )
@@ -23,7 +26,7 @@ from chrome import (
 
 class TestChromeBrowserUtilities(unittest.TestCase):
     def test_language_accept_params(self):
-        """Test language_accept_params returns correct Accept-Language headers"""
+        """Test get_locale_configuration returns correct Accept-Language headers"""
         test_cases = {
             'en': 'en-US,en;q=0.9',
             'ru': 'ru-RU,ru;q=0.9',
@@ -37,11 +40,11 @@ class TestChromeBrowserUtilities(unittest.TestCase):
 
         for language, expected_header in test_cases.items():
             with self.subTest(language=language):
-                result = language_accept_params(language)
+                result = get_locale_configuration(language)['accept_language']
                 self.assertEqual(result, expected_header)
 
     def test_timezone_spoofing_params(self):
-        """Test timezone_spoofing_params returns correct timezone configurations"""
+        """Test get_locale_configuration returns correct timezone configurations"""
         test_cases = {
             'en': {
                 'name': 'America/Los_Angeles',
@@ -67,7 +70,7 @@ class TestChromeBrowserUtilities(unittest.TestCase):
 
         for language, expected_config in test_cases.items():
             with self.subTest(language=language):
-                result = timezone_spoofing_params(language)
+                result = get_locale_configuration(language)['timezone']
                 self.assertEqual(result, expected_config)
 
     @patch('chrome.webdriver.Chrome')
