@@ -6,6 +6,7 @@ import logging
 
 from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
+from chrome_tls_fingerprint import modify_tls_fingerprint
 
 
 def get_locale_configuration(language_setting: str) -> dict:
@@ -170,6 +171,9 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
+        # # Add TLS Fingerprint modification
+        driver = modify_tls_fingerprint(driver)
+
         # Execute the script to override OS detection properties
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": script_to_override
@@ -183,7 +187,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                 const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
                 const originalToBlob = HTMLCanvasElement.prototype.toBlob;
                 const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-    
+
                 // Helper to add subtle noise to canvas data
                 function addNoise(data) {
                     const noise = 5;  // Small noise value
@@ -195,7 +199,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                     }
                     return data;
                 }
-    
+
                 // Override getContext
                 HTMLCanvasElement.prototype.getContext = function(type, attributes) {
                     const context = originalGetContext.call(this, type, attributes);
@@ -211,7 +215,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                     }
                     return context;
                 };
-    
+
                 // Override toDataURL
                 HTMLCanvasElement.prototype.toDataURL = function(...args) {
                     const context = this.getContext('2d');
@@ -223,7 +227,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                     }
                     return originalToDataURL.apply(this, args);
                 };
-    
+
                 // Override toBlob
                 HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
                     const context = this.getContext('2d');
@@ -235,14 +239,14 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                     }
                     return originalToBlob.call(this, callback, ...args);
                 };
-    
+
                 // Override getImageData
                 CanvasRenderingContext2D.prototype.getImageData = function(...args) {
                     const imageData = originalGetImageData.apply(this, args);
                     imageData.data = addNoise(imageData.data);
                     return imageData;
                 };
-    
+
                 // Notify attempts to access canvas
                 console.warn("Canvas fingerprinting protection active");
             })();
@@ -262,7 +266,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                         removeEventListener: () => {}
                     })
                 });
-    
+
                 // Standardize font measurement
                 if (HTMLCanvasElement.prototype.measureText) {
                     const originalMeasureText = HTMLCanvasElement.prototype.measureText;
@@ -276,7 +280,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                         };
                     };
                 }
-    
+
                 // Override font loading
                 if (window.FontFace) {
                     window.FontFace = function() {
@@ -290,7 +294,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
                 }
             }
             protectFonts();
-    
+
             // Monitor and reapply protection
             setInterval(protectFonts, 1000);
             """
@@ -301,11 +305,11 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
             Object.defineProperty(navigator, 'language', {{
                 get: () => '{lang_code}'
             }});
-    
+
             Object.defineProperty(navigator, 'languages', {{
                 get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
             }});
-    
+
             // Override Accept-Language header
             Object.defineProperty(navigator, 'acceptLanguages', {{
                 get: () => '{accept_language}'
