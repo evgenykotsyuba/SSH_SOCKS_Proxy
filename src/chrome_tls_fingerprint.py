@@ -47,8 +47,7 @@ def modify_tls_fingerprint(driver: WebDriver) -> WebDriver:
         #         // Replace the Chrome version with a random value
         #         return navigator.userAgent.replace(/Chrome\/[\d.]+/, 'Chrome/' + Math.floor(Math.random() * 100) + '.0.0.0');
         #     }
-        # }
-        );
+        # });
     })();
     """
 
