@@ -1,3 +1,4 @@
+# chrome.py
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -6,7 +7,10 @@ import logging
 
 from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
-from chrome_tls_fingerprint import modify_tls_fingerprint
+from chrome_tls_fingerprinting_protection import modify_tls_fingerprinting_protection
+from chrome_font_fingerprinting_protection import get_font_fingerprinting_protection_script
+from canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
+from chrome_timezone_configuration import get_timezone_spoofing_script
 
 
 def get_locale_configuration(language_setting: str) -> dict:
@@ -171,229 +175,47 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
-        # # Add TLS Fingerprint modification
-        driver = modify_tls_fingerprint(driver)
+        # Add TLS Fingerprint modification
+        driver = modify_tls_fingerprinting_protection(driver)
 
         # Execute the script to override OS detection properties
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": script_to_override
         })
 
-        # Canvas fingerprinting protection script
-        canvas_protection_script = """
-            (function() {
-                // Store original functions
-                const originalGetContext = HTMLCanvasElement.prototype.getContext;
-                const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-                const originalToBlob = HTMLCanvasElement.prototype.toBlob;
-                const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-
-                // Helper to add subtle noise to canvas data
-                function addNoise(data) {
-                    const noise = 5;  // Small noise value
-                    for (let i = 0; i < data.length; i += 4) {
-                        data[i] = Math.max(0, Math.min(255, data[i] + (Math.random() * 2 - 1) * noise));     // Red
-                        data[i+1] = Math.max(0, Math.min(255, data[i+1] + (Math.random() * 2 - 1) * noise)); // Green
-                        data[i+2] = Math.max(0, Math.min(255, data[i+2] + (Math.random() * 2 - 1) * noise)); // Blue
-                        // Alpha channel remains unchanged
-                    }
-                    return data;
-                }
-
-                // Override getContext
-                HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-                    const context = originalGetContext.call(this, type, attributes);
-                    if (context && (type === '2d' || type === 'webgl' || type === 'experimental-webgl')) {
-                        // Add noise to text rendering
-                        const originalFillText = context.fillText;
-                        context.fillText = function(...args) {
-                            const result = originalFillText.apply(this, args);
-                            // Add subtle randomization to text position
-                            this.translate((Math.random() * 2 - 1) * 0.5, (Math.random() * 2 - 1) * 0.5);
-                            return result;
-                        };
-                    }
-                    return context;
-                };
-
-                // Override toDataURL
-                HTMLCanvasElement.prototype.toDataURL = function(...args) {
-                    const context = this.getContext('2d');
-                    if (context) {
-                        const imageData = context.getImageData(0, 0, this.width, this.height);
-                        const pixels = imageData.data;
-                        addNoise(pixels);
-                        context.putImageData(imageData, 0, 0);
-                    }
-                    return originalToDataURL.apply(this, args);
-                };
-
-                // Override toBlob
-                HTMLCanvasElement.prototype.toBlob = function(callback, ...args) {
-                    const context = this.getContext('2d');
-                    if (context) {
-                        const imageData = context.getImageData(0, 0, this.width, this.height);
-                        const pixels = imageData.data;
-                        addNoise(pixels);
-                        context.putImageData(imageData, 0, 0);
-                    }
-                    return originalToBlob.call(this, callback, ...args);
-                };
-
-                // Override getImageData
-                CanvasRenderingContext2D.prototype.getImageData = function(...args) {
-                    const imageData = originalGetImageData.apply(this, args);
-                    imageData.data = addNoise(imageData.data);
-                    return imageData;
-                };
-
-                // Notify attempts to access canvas
-                console.warn("Canvas fingerprinting protection active");
-            })();
-            """
-
-        # Font fingerprinting protection script
-        font_protection_script = """
-            // Override font-related APIs
-            function protectFonts() {
-                // Override font enumeration
-                Object.defineProperty(document, 'fonts', {
-                    get: () => ({
-                        ready: Promise.resolve(),
-                        check: () => false,
-                        load: () => Promise.reject(),
-                        addEventListener: () => {},
-                        removeEventListener: () => {}
-                    })
-                });
-
-                // Standardize font measurement
-                if (HTMLCanvasElement.prototype.measureText) {
-                    const originalMeasureText = HTMLCanvasElement.prototype.measureText;
-                    HTMLCanvasElement.prototype.measureText = function(text) {
-                        return {
-                            width: text.length * 8,
-                            actualBoundingBoxAscent: 8,
-                            actualBoundingBoxDescent: 2,
-                            fontBoundingBoxAscent: 8,
-                            fontBoundingBoxDescent: 2
-                        };
-                    };
-                }
-
-                // Override font loading
-                if (window.FontFace) {
-                    window.FontFace = function() {
-                        return {
-                            load: () => Promise.reject(),
-                            loaded: Promise.reject(),
-                            status: 'error',
-                            family: 'sans-serif'
-                        };
-                    };
-                }
-            }
-            protectFonts();
-
-            // Monitor and reapply protection
-            setInterval(protectFonts, 1000);
-            """
-
-        # Updated language configuration script
-        language_config_script = f"""
-            // Override navigator.language and navigator.languages
-            Object.defineProperty(navigator, 'language', {{
-                get: () => '{lang_code}'
-            }});
-
-            Object.defineProperty(navigator, 'languages', {{
-                get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
-            }});
-
-            // Override Accept-Language header
-            Object.defineProperty(navigator, 'acceptLanguages', {{
-                get: () => '{accept_language}'
-            }});
-            """
-
-        # Updated timezone configuration script with dynamic timezone
-        timezone_spoofing_script = f"""
-            // Timezone spoofing
-            (function() {{
-                const tzConfig = {{
-                    name: '{tz_config["name"]}',
-                    offset: {tz_config["offset"]},
-                    display: '{tz_config["display"]}'
-                }};
-
-                // Override Date methods
-                const originalDate = Date;
-                const originalGetTimezoneOffset = Date.prototype.getTimezoneOffset;
-                const originalToString = Date.prototype.toString;
-                const originalToLocaleString = Date.prototype.toLocaleString;
-                const originalToTimeString = Date.prototype.toTimeString;
-
-                Date.prototype.getTimezoneOffset = function() {{
-                    return tzConfig.offset;
-                }};
-
-                Date.prototype.toString = function() {{
-                    const date = new originalDate(this.valueOf());
-                    return date.toLocaleString('{accept_language}', {{
-                        timeZone: tzConfig.name,
-                        hour12: false,
-                        weekday: 'short',
-                        year: 'numeric',
-                        month: 'short',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit',
-                        timeZoneName: 'short'
-                    }});
-                }};
-
-                // Override Intl.DateTimeFormat
-                const originalDateTimeFormat = Intl.DateTimeFormat;
-                window.Intl.DateTimeFormat = function(locales, options) {{
-                    if (options === undefined) {{
-                        options = {{}};
-                    }}
-                    options.timeZone = tzConfig.name;
-                    return new originalDateTimeFormat(locales, options);
-                }};
-
-                // Override timezone-related properties
-                Object.defineProperty(Intl, 'DateTimeFormat', {{
-                    writable: false,
-                    configurable: false
-                }});
-
-                // Override performance.timeOrigin and performance.now()
-                const originalPerformance = window.performance;
-                const performanceOffset = new originalDate().getTimezoneOffset() * 60 * 1000;
-
-                Object.defineProperty(window, 'performance', {{
-                    get: function() {{
-                        return {{
-                            ...originalPerformance,
-                            timeOrigin: originalPerformance.timeOrigin - performanceOffset,
-                            now: function() {{
-                                return originalPerformance.now() - performanceOffset;
-                            }}
-                        }};
-                    }}
-                }});
-            }})();
-            """
-
-        # Execute protection scripts
+        # Use the function from the new module for Canvas fingerprinting protection
+        canvas_protection_script = get_canvas_fingerprinting_protection_script()
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": canvas_protection_script
         })
+
+        # Use the function from the new module for font fingerprinting protection
+        font_protection_script = get_font_fingerprinting_protection_script()
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": font_protection_script
         })
+
+        # Updated language configuration script
+        language_config_script = f"""
+                    // Override navigator.language and navigator.languages
+                    Object.defineProperty(navigator, 'language', {{
+                        get: () => '{lang_code}'
+                    }});
+
+                    Object.defineProperty(navigator, 'languages', {{
+                        get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
+                    }});
+
+                    // Override Accept-Language header
+                    Object.defineProperty(navigator, 'acceptLanguages', {{
+                        get: () => '{accept_language}'
+                    }});
+                    """
+
+        # Use the function from the new module to spoof the timezone
+        timezone_spoofing_script = get_timezone_spoofing_script(tz_config, accept_language)
+
+        # Execute protection scripts
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": language_config_script
         })
