@@ -1,8 +1,9 @@
 import os
 import asyncio
 import logging
-import datetime
+from datetime import date
 import threading
+import socket
 import signal
 import sys
 import argparse
@@ -13,6 +14,7 @@ from config import ConfigManager, SSHConfig
 from ssh_client import SSHClient, SSHConnectionError
 from socks_to_http_proxy import SOCKStoHTTPProxy
 from password_encryption_decryption import encrypt_password, salt
+from logging_handler import ColoredFormatter
 
 
 class ConsoleSSHProxy:
@@ -27,21 +29,38 @@ class ConsoleSSHProxy:
         self.loop = None
         self._setup_logging()
         self._setup_signal_handlers()
-        self.log_file = os.path.join(os.getcwd(), "log", f"socks_proxy_{datetime.date.today()}.log")
+        self.log_file = os.path.join(os.getcwd(), "log", f"socks_proxy_{date.today()}.log")
 
     def _setup_logging(self):
         """
-        Set up logging configuration. Logs will only display warnings and errors.
+        Configure logging with:
+        - Colored console output (WARNING level and above)
+        - File logging (INFO level and above)
         """
+        # Create log directory if it doesn't exist
         log_dir = os.path.join(os.getcwd(), "log")
         os.makedirs(log_dir, exist_ok=True)
 
+        # Get the root logger
         logger = logging.getLogger()
-        logger.setLevel(logging.WARNING)  # Set to WARNING to reduce output
+        # Clear any existing handlers to avoid duplication
+        logger.handlers.clear()
+        # Set root logger to lowest level used (INFO)
+        logger.setLevel(logging.INFO)
 
-        log_filename = os.path.join(log_dir, f"socks_proxy_{datetime.date.today()}.log")
+        # Console Handler (WARNING and above)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.WARNING)
+        console_formatter = ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+
+        # File Handler (INFO and above)
+        log_filename = os.path.join(log_dir, f"socks_proxy_{date.today()}.log")
         file_handler = logging.FileHandler(log_filename)
-        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+        file_handler.setLevel(logging.INFO)
+        file_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
     def _setup_signal_handlers(self):
@@ -146,44 +165,121 @@ class ConsoleSSHProxy:
             logging.error(f"Unexpected error during connection: {e}")
             print(f"Unexpected error: {e}")
 
-    def start_http_proxy(self):
+    def _is_port_available(self, port):
+        """Check if a port is available for binding."""
+        import socket
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', port))
+                return True
+        except OSError:
+            return False
+
+    async def start_http_proxy(self):
+        """Asynchronous HTTP proxy start with improved error handling"""
         try:
             socks_port = self.config.dynamic_port
             http_port = self.config.http_proxy_port
 
-            if not self._verify_socks_proxy(socks_port):
-                raise RuntimeError(f"SOCKS proxy not running on port {socks_port}")
+            # Check SOCKS proxy availability
+            logging.info(f"[HTTP Proxy] Checking SOCKS proxy (port {socks_port})...")
+            if not await self._async_verify_socks_proxy(socks_port, retries=10, delay=2):
+                raise RuntimeError(f"SOCKS proxy is not available on port {socks_port}")
 
-            def run_proxy():
-                try:
-                    self.http_proxy = SOCKStoHTTPProxy(
-                        http_port=http_port,
-                        socks_port=socks_port
-                        # Remove bind_address and timeout parameters
-                    )
-                    self.http_proxy.start()
-                except Exception as e:
-                    logging.error(f"HTTP proxy thread error: {e}")
-                    self.http_proxy = None
-                    raise
+            # Check if HTTP port is busy
+            logging.info(f"[HTTP Proxy] Checking port {http_port}...")
+            if not await self._async_is_port_available(http_port):
+                raise RuntimeError(f"Port {http_port} is busy")
 
-            proxy_thread = threading.Thread(target=run_proxy, daemon=True)
-            proxy_thread.start()
+            # Initialize HTTP proxy
+            try:
+                self.http_proxy = SOCKStoHTTPProxy(
+                    http_port=http_port,
+                    socks_port=socks_port
+                )
+                logging.info("[HTTP Proxy] Starting server...")
+                await asyncio.to_thread(self.http_proxy.start)
+            except Exception as e:
+                logging.error(f"[HTTP Proxy] Start error: {str(e)}", exc_info=True)
+                raise
 
-            time.sleep(1)
-            if not self._verify_http_proxy(http_port):
-                raise RuntimeError(f"HTTP proxy failed to start on port {http_port}")
+            # Wait for initialization
+            logging.info("[HTTP Proxy] Waiting for initialization (5 sec)...")
+            await asyncio.sleep(5)
 
-            logging.info(f"HTTP Proxy successfully started on port {http_port}")
-            print(f"HTTP Proxy successfully started on port {http_port}")
+            # Check functionality
+            logging.info("[HTTP Proxy] Checking functionality...")
+            if not await self._async_verify_http_proxy(http_port, retries=10, delay=2):
+                raise RuntimeError("HTTP proxy is not responding")
+
+            logging.info(f"[HTTP Proxy] Successfully started on port {http_port}")
+            print(f"HTTP proxy: port {http_port}")
             return True
 
         except Exception as e:
-            logging.error(f"Failed to start HTTP proxy: {e}")
-            print(f"Failed to start HTTP proxy: {e}")
+            logging.error(f"[HTTP Proxy] Critical error: {str(e)}", exc_info=True)
             if self.http_proxy:
-                self.http_proxy.stop()
+                await asyncio.to_thread(self.http_proxy.stop)
                 self.http_proxy = None
+            return False
+
+    async def _async_verify_http_proxy(self, port, retries=10, delay=2):
+        """Verification with increased number of attempts"""
+        for i in range(retries):
+            logging.info(f"HTTP proxy check attempt #{i + 1}")
+            if await self._async_check_port(port):
+                return True
+            await asyncio.sleep(delay)
+        return False
+
+    async def _async_verify_socks_proxy(self, port, retries=10, delay=2):
+        """Verification with increased number of attempts"""
+        for i in range(retries):
+            logging.info(f"SOCKS check #{i + 1}")
+            if await self._async_check_port(port):
+                return True
+            await asyncio.sleep(delay)
+        return False
+
+    async def _async_is_port_available(self, port):
+        """Asynchronous port availability check"""
+        loop = asyncio.get_event_loop()
+        try:
+            await loop.run_in_executor(None, self._check_port_availability, port)
+            return True
+        except OSError:
+            return False
+
+    def _check_port_availability(self, port):
+        """Synchronous port check"""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                s.bind(('127.0.0.1', port))
+                return True
+            except OSError:
+                return False
+
+    async def _async_verify_http_proxy(self, port, retries=3, delay=1):
+        """Asynchronous HTTP proxy verification"""
+        for _ in range(retries):
+            if await self._async_check_port(port):
+                return True
+            await asyncio.sleep(delay)
+        return False
+
+    async def _async_check_port(self, port):
+        """Asynchronous port connection check"""
+        loop = asyncio.get_event_loop()
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection('127.0.0.1', port),
+                timeout=2
+            )
+            writer.close()
+            await writer.wait_closed()
+            return True
+        except (ConnectionRefusedError, asyncio.TimeoutError):
             return False
 
     async def show_connection_status(self):
@@ -196,7 +292,6 @@ class ConsoleSSHProxy:
         print(f"SSH SOCKS: {ssh_status}")
 
         # Check HTTP proxy connection
-        # http_status = "Connected" if self.http_proxy and self.http_proxy.is_running() else "Not Connected"
         http_status = "Connected" if self.http_proxy else "Not Connected"
         print(f"HTTP proxy: {http_status}")
 
@@ -204,14 +299,14 @@ class ConsoleSSHProxy:
         if self.ssh_client:
             self.ssh_client.stop()
             self.ssh_client = None
+            logging.info("SOCKS Proxy stopped.")
+            print("SOCKS Proxy stopped.")
 
         if self.http_proxy:
             self.http_proxy.stop()
             self.http_proxy = None
-
-        # if self.traffic_monitor:
-        #     self.traffic_monitor.stop_monitoring()
-        #     self.traffic_running = False
+            logging.info("HTTP Proxy stopped.")
+            print("HTTP Proxy stopped.")
 
         if self.loop and not self.loop.is_closed():
             self.loop.stop()
@@ -221,20 +316,20 @@ class ConsoleSSHProxy:
         print("All services stopped")
 
     def _run_async_task(self, task, *args):
-        """
-        Run an async task in a separate thread to prevent blocking.
-        """
+        """Run async task without blocking the main thread"""
 
         def run_in_thread():
-            asyncio.run(task(*args))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(task(*args))
 
         thread = threading.Thread(target=run_in_thread, daemon=True)
         thread.start()
-        thread.join()  # Wait for the task to finish
+        # Removed thread.join() to avoid blocking
 
     def show_menu(self):
         while True:
-            if not self.monitor_running:  # Если мониторинг неактивен, отображаем главное меню
+            if not self.monitor_running:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 print("\nSSH Proxy Menu")
                 print("=============")
@@ -258,12 +353,11 @@ class ConsoleSSHProxy:
                 elif choice == "3":
                     self.stop()
                 elif choice == "4":
-                    self.start_http_proxy()
+                    self._run_async_task(self.start_http_proxy)
                 elif choice == "5":
                     if self.http_proxy:
                         self.http_proxy.stop()
                         self.http_proxy = None
-                        logging.warning("HTTP Proxy stopped.")
                 elif choice == "6":
                     self._run_async_task(self.show_connection_status)
                 elif choice == "7":
@@ -279,24 +373,24 @@ class ConsoleSSHProxy:
                 logging.error(f"An error occurred: {e}")
                 print(f"An error occurred: {e}")
 
-            if not self.monitor_running:  # Только в обычном режиме ждём Enter
+            if not self.monitor_running:
                 input("\nPress Enter to continue...")
 
     async def start_services(self, connect_http=False):
-        """Start services based on command line arguments"""
         if connect_http:
-            # First establish SSH connection
             await self.connect()
-
-            # If SSH connection is successful, start HTTP proxy
             if self.ssh_client and await self.ssh_client.is_connected():
-                # Give some time for SSH connection to stabilize
-                await asyncio.sleep(2)
-                # Run HTTP proxy in a separate thread with proper synchronization
-                with ThreadPoolExecutor() as executor:
-                    await asyncio.get_event_loop().run_in_executor(
-                        executor, self.start_http_proxy
-                    )
+                # Increase wait time to 5 seconds
+                await asyncio.sleep(5)
+
+                # Start HTTP proxy
+                if not await self.start_http_proxy():
+                    logging.error("HTTP proxy failed to start")
+                    return
+
+                # Infinite loop to keep services running
+                while True:
+                    await asyncio.sleep(1)
             else:
                 logging.error("Cannot start HTTP proxy: SSH connection not established")
                 print("Cannot start HTTP proxy: SSH connection not established")
@@ -330,7 +424,7 @@ def parse_arguments():
 
 
 async def run_services(proxy, args):
-    """Асинхронная функция для запуска сервисов"""
+    """Asynchronous function for running services"""
     try:
         await proxy.start_services(connect_http=args.connect_http)
 
