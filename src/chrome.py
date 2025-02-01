@@ -11,6 +11,7 @@ from chrome_tls_fingerprinting_protection import modify_tls_fingerprinting_prote
 from chrome_font_fingerprinting_protection import get_font_fingerprinting_protection_script
 from canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
 from chrome_timezone_configuration import get_timezone_spoofing_script
+from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer
 
 
 def get_locale_configuration(language_setting: str) -> dict:
@@ -194,6 +195,9 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": font_protection_script
         })
+
+        # Modify WebGL Vendor and Renderer
+        driver = modify_webgl_vendor_renderer(driver)
 
         # Updated language configuration script
         language_config_script = f"""
