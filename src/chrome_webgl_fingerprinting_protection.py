@@ -1,145 +1,130 @@
 def modify_webgl_vendor_renderer(driver):
     """
-    Modifies the WebGL Vendor, Renderer, and other WebGL-related properties to spoof NVIDIA Graphics.
-    This includes overriding WebGL1, WebGL2, and related WebGL context properties.
-
-    Args:
-        driver: The Selenium WebDriver instance.
-
-    Returns:
-        driver: The modified WebDriver instance.
+    Full emulation of the WebGL fingerprint of an NVIDIA GTX 1080 Ti
+    with deep interception of all possible detection methods.
     """
     webgl_spoofing_script = """
-    // Define WebGL constants for better readability
-    const VENDOR = WebGLRenderingContext.VENDOR;
-    const RENDERER = WebGLRenderingContext.RENDERER;
-    const VERSION = WebGLRenderingContext.VERSION;
-    const MAX_VERTEX_UNIFORM_VECTORS = WebGLRenderingContext.MAX_VERTEX_UNIFORM_VECTORS;
-    const MAX_COLOR_ATTACHMENTS = WebGL2RenderingContext.MAX_COLOR_ATTACHMENTS;
-    const MAX_DRAW_BUFFERS = WebGL2RenderingContext.MAX_DRAW_BUFFERS;
-
-    // Override WebGL Vendor, Renderer, and Version
-    const getParameter = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function(parameter) {
-        if (parameter === VENDOR) {
-            return 'NVIDIA Corporation';
-        }
-        if (parameter === RENDERER) {
-            return 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2';
-        }
-        if (parameter === VERSION) {
-            return 'WebGL 2.0';
-        }
-        if (parameter === MAX_VERTEX_UNIFORM_VECTORS) {
-            return 4096; // Realistic value for GTX 1080 Ti
-        }
-        return getParameter.call(this, parameter);
+    // ================= GLOBAL INTERCEPTION OF PROTOTYPES =================
+    const spoofedData = {
+        vendor: 'NVIDIA Corporation',
+        renderer: 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2',
+        version: 'WebGL 2.0',
+        parameters: {
+            [WebGLRenderingContext.VENDOR]: 'NVIDIA Corporation',
+            [WebGLRenderingContext.RENDERER]: 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2',
+            [WebGLRenderingContext.VERSION]: 'WebGL 2.0',
+            [WebGLRenderingContext.MAX_TEXTURE_SIZE]: 16384,
+            [WebGLRenderingContext.MAX_RENDERBUFFER_SIZE]: 16384,
+            [WebGL2RenderingContext.MAX_3D_TEXTURE_SIZE]: 2048,
+            [WebGL2RenderingContext.MAX_COLOR_ATTACHMENTS]: 8
+        },
+        extensions: [
+            'ANGLE_instanced_arrays',
+            'EXT_blend_minmax',
+            'WEBGL_debug_renderer_info'
+        ]
     };
 
-    // Override Unmasked Vendor and Renderer
-    const getExtension = WebGLRenderingContext.prototype.getExtension;
-    WebGLRenderingContext.prototype.getExtension = function(name) {
-        if (name === 'WEBGL_debug_renderer_info') {
-            return {
-                UNMASKED_VENDOR_WEBGL: 'NVIDIA Corporation',
-                UNMASKED_RENDERER_WEBGL: 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2'
+    // ========== OVERRIDING BASE WEBGL CLASSES ==========
+    const wrapContext = (originalContext, isWebGL2 = false) => {
+        const handler = {
+            get(target, prop) {
+                // Intercept getParameter
+                if (prop === 'getParameter') {
+                    return (param) => {
+                        return spoofedData.parameters[param] || target.getParameter(param);
+                    };
+                }
+
+                // Intercept getExtension
+                if (prop === 'getExtension') {
+                    return (name) => {
+                        if (name === 'WEBGL_debug_renderer_info') {
+                            return {
+                                UNMASKED_VENDOR_WEBGL: spoofedData.vendor,
+                                UNMASKED_RENDERER_WEBGL: spoofedData.renderer
+                            };
+                        }
+                        return target.getExtension(name);
+                    };
+                }
+
+                // Intercept supported extensions
+                if (prop === 'getSupportedExtensions') {
+                    return () => [...target.getSupportedExtensions(), ...spoofedData.extensions];
+                }
+
+                return target[prop];
+            }
+        };
+
+        return new Proxy(originalContext, handler);
+    };
+
+    // ========== DEEP INTERCEPTION OF CANVAS ==========
+    const originalCreateElement = Document.prototype.createElement;
+    Document.prototype.createElement = function(type) {
+        if (type === 'canvas') {
+            const canvas = originalCreateElement.call(this, type);
+
+            const originalGetContext = canvas.getContext.bind(canvas);
+            canvas.getContext = function(type, attrs) {
+                if (type === 'webgl' || type === 'webgl2') {
+                    const ctx = originalGetContext(type, attrs);
+                    return ctx ? wrapContext(ctx, type === 'webgl2') : null;
+                }
+                return originalGetContext(type, attrs);
             };
+
+            return canvas;
         }
-        return getExtension.call(this, name);
+        return originalCreateElement.apply(this, arguments);
     };
 
-    // Override WebGL rendering context creation
-    const originalGetContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-        if (type === 'webgl' || type === 'webgl2') {
-            const context = originalGetContext.call(this, type, attributes);
-            if (context) {
-                // Override WebGL debug info
-                context.getParameter = function(parameter) {
-                    if (parameter === VENDOR) {
-                        return 'NVIDIA Corporation';
-                    }
-                    if (parameter === RENDERER) {
-                        return 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2';
-                    }
-                    if (parameter === VERSION) {
-                        return 'WebGL 2.0';
-                    }
-                    if (parameter === MAX_VERTEX_UNIFORM_VECTORS) {
-                        return 4096; // Realistic value for GTX 1080 Ti
-                    }
-                    return getParameter.call(this, parameter);
-                };
+    // ========== GPU EMULATION VIA NAVIGATOR ==========
+    Object.defineProperty(navigator, 'gpu', {
+        value: {
+            requestAdapter: async () => ({
+                name: spoofedData.renderer,
+                features: [
+                    'depth-clip-control',
+                    'texture-compression-bc'
+                ],
+                limits: {
+                    maxTextureDimension2D: 16384
+                }
+            })
+        },
+        configurable: false,
+        writable: false
+    });
 
-                context.getExtension = function(name) {
-                    if (name === 'WEBGL_debug_renderer_info') {
-                        return {
-                            UNMASKED_VENDOR_WEBGL: 'NVIDIA Corporation',
-                            UNMASKED_RENDERER_WEBGL: 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2'
-                        };
-                    }
-                    return getExtension.call(this, name);
-                };
-            }
-            return context;
-        }
-        return originalGetContext.call(this, type, attributes);
+    // ========== INTERCEPTION OF WEBGL SHADERS ==========
+    const originalShaderSource = WebGLRenderingContext.prototype.shaderSource;
+    WebGLRenderingContext.prototype.shaderSource = function(shader, source) {
+        const modifiedSource = source.replace(/ATI/gi, 'NVIDIA')
+                                     .replace(/Radeon/gi, 'GeForce');
+        return originalShaderSource.call(this, shader, modifiedSource);
     };
 
-    // Override WebGL2 properties
-    if (typeof WebGL2RenderingContext !== 'undefined') {
-        const getParameterWebGL2 = WebGL2RenderingContext.prototype.getParameter;
-        WebGL2RenderingContext.prototype.getParameter = function(parameter) {
-            if (parameter === VENDOR) {
-                return 'NVIDIA Corporation';
+    // ========== COLD START PROTECTION ==========
+    if (window.WebGLRenderingContext) {
+        const originalWebGL = window.WebGLRenderingContext;
+        window.WebGLRenderingContext = class extends originalWebGL {
+            constructor() {
+                super();
+                return wrapContext(this);
             }
-            if (parameter === RENDERER) {
-                return 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2';
-            }
-            if (parameter === VERSION) {
-                return 'WebGL 2.0';
-            }
-            if (parameter === MAX_COLOR_ATTACHMENTS) {
-                return 8; // Realistic value for GTX 1080 Ti
-            }
-            if (parameter === MAX_DRAW_BUFFERS) {
-                return 8; // Realistic value for GTX 1080 Ti
-            }
-            return getParameterWebGL2.call(this, parameter);
-        };
-
-        const getExtensionWebGL2 = WebGL2RenderingContext.prototype.getExtension;
-        WebGL2RenderingContext.prototype.getExtension = function(name) {
-            if (name === 'WEBGL_debug_renderer_info') {
-                return {
-                    UNMASKED_VENDOR_WEBGL: 'NVIDIA Corporation',
-                    UNMASKED_RENDERER_WEBGL: 'NVIDIA GeForce GTX 1080 Ti/PCIe/SSE2'
-                };
-            }
-            return getExtensionWebGL2.call(this, name);
-        };
-    }
-
-    // Override supported extensions
-    const getSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
-    WebGLRenderingContext.prototype.getSupportedExtensions = function() {
-        const original = getSupportedExtensions.call(this);
-        return [...original, 'WEBGL_debug_renderer_info'];
-    };
-
-    // Emulate GPU properties
-    if (!navigator.gpu) {
-        navigator.gpu = {
-            description: 'NVIDIA GeForce GTX 1080 Ti',
-            vendor: 'NVIDIA Corporation',
-            architecture: 'Pascal'
         };
     }
     """
 
-    # Execute the script to override WebGL Vendor and Renderer
+    # Double injection of the script for all frames
     driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
         "source": webgl_spoofing_script
     })
+
+    # For already opened pages
+    driver.execute_script(webgl_spoofing_script)
 
     return driver
