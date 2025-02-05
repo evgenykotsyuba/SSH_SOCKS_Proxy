@@ -11,7 +11,7 @@ from chrome_tls_fingerprinting_protection import modify_tls_fingerprinting_prote
 from chrome_font_fingerprinting_protection import get_font_fingerprinting_protection_script
 from canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
 from chrome_timezone_configuration import get_timezone_spoofing_script
-from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer
+from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer, modify_webgl_textures
 
 
 def get_locale_configuration(language_setting: str) -> dict:
@@ -102,6 +102,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--start-maximized")
     chrome_options.add_argument(f"--proxy-server=socks5://{socks_host}:{socks_port}")
     chrome_options.add_argument("--incognito")  # Enable incognito mode
+    # chrome_options.add_argument("--disable-web-security")  # Disables security mechanisms
     chrome_options.add_argument(f"--user-agent={user_agent}")  # Set a custom User-Agent
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Remove WebDriver flag
     chrome_options.add_argument("--enable-logging")
@@ -116,6 +117,12 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     # Add language settings
     chrome_options.add_argument(f"--lang={lang_code}")
     chrome_options.add_argument(f"--accept-language={accept_language}")
+
+    # WebGL fingerprinting protection
+    chrome_options.add_argument("--use-gl=desktop")  # Enable hardware acceleration
+    chrome_options.add_argument("--ignore-gpu-blocklist")  # Ignore GPU blocklist
+    chrome_options.add_argument("--enable-webgl")  # Enable WebGL
+    chrome_options.add_argument("--enable-webgl2")  # Enable WebGL2
 
     # Font fingerprinting protection
     chrome_options.add_argument("--disable-remote-fonts")  # Disable remote font loading
@@ -198,6 +205,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
 
         # Modify WebGL Vendor and Renderer
         driver = modify_webgl_vendor_renderer(driver)
+        driver = modify_webgl_textures(driver)
 
         # Updated language configuration script
         language_config_script = f"""

@@ -128,3 +128,123 @@ def modify_webgl_vendor_renderer(driver):
     driver.execute_script(webgl_spoofing_script)
 
     return driver
+
+
+def modify_webgl_textures(driver):
+    """
+    Modifies WebGL textures to emulate an NVIDIA GTX 1080 Ti,
+    including texture parameters, compression formats, and shader characteristics.
+    """
+    texture_spoofing_script = """
+    // Texture parameter configuration for GTX 1080 Ti
+    const textureConfig = {
+        MAX_TEXTURE_SIZE: 16384,
+        MAX_CUBE_MAP_TEXTURE_SIZE: 16384,
+        MAX_3D_TEXTURE_SIZE: 2048,
+        MAX_TEXTURE_IMAGE_UNITS: 32,
+        MAX_COMBINED_TEXTURE_IMAGE_UNITS: 192,
+        MAX_ARRAY_TEXTURE_LAYERS: 2048,
+        COMPRESSED_TEXTURE_FORMATS: [
+            33776, 33777, 33778, 33779,  // S3TC
+            37492, 37493, 37494, 37495,  // BPTC
+            35898, 35899, 35900          // ETC
+        ],
+        MAX_SAMPLES: 8
+    };
+
+    // Intercept basic texture parameters
+    const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
+    WebGLRenderingContext.prototype.getParameter = function(param) {
+        switch(param) {
+            case WebGLRenderingContext.MAX_TEXTURE_SIZE:
+                return textureConfig.MAX_TEXTURE_SIZE;
+            case WebGLRenderingContext.MAX_CUBE_MAP_TEXTURE_SIZE:
+                return textureConfig.MAX_CUBE_MAP_TEXTURE_SIZE;
+            case WebGL2RenderingContext.MAX_3D_TEXTURE_SIZE:
+                return textureConfig.MAX_3D_TEXTURE_SIZE;
+            case WebGLRenderingContext.MAX_TEXTURE_IMAGE_UNITS:
+                return textureConfig.MAX_TEXTURE_IMAGE_UNITS;
+            case WebGLRenderingContext.MAX_COMBINED_TEXTURE_IMAGE_UNITS:
+                return textureConfig.MAX_COMBINED_TEXTURE_IMAGE_UNITS;
+            case WebGL2RenderingContext.MAX_ARRAY_TEXTURE_LAYERS:
+                return textureConfig.MAX_ARRAY_TEXTURE_LAYERS;
+            case WebGL2RenderingContext.MAX_SAMPLES:
+                return textureConfig.MAX_SAMPLES;
+            default:
+                return originalGetParameter.call(this, param);
+        }
+    };
+
+    // Override supported compression formats
+    const originalGetSupportedExtensions = WebGLRenderingContext.prototype.getSupportedExtensions;
+    WebGLRenderingContext.prototype.getSupportedExtensions = function() {
+        const original = originalGetSupportedExtensions.call(this);
+        return [...original, 
+            'WEBGL_compressed_texture_s3tc',
+            'WEBGL_compressed_texture_etc',
+            'WEBGL_compressed_texture_bptc'
+        ];
+    };
+
+    // Intercept texture creation
+    const originalCreateTexture = WebGLRenderingContext.prototype.createTexture;
+    WebGLRenderingContext.prototype.createTexture = function() {
+        const texture = originalCreateTexture.call(this);
+
+        // Override parameters when binding textures
+        const originalBindTexture = this.bindTexture;
+        this.bindTexture = function(target, texture) {
+            originalBindTexture.call(this, target, texture);
+
+            // Automatically set filtering parameters
+            this.texParameteri(target, this.TEXTURE_MIN_FILTER, this.LINEAR_MIPMAP_LINEAR);
+            this.texParameteri(target, this.TEXTURE_MAG_FILTER, this.LINEAR);
+            this.texParameteri(target, this.TEXTURE_WRAP_S, this.REPEAT);
+            this.texParameteri(target, this.TEXTURE_WRAP_T, this.REPEAT);
+        };
+
+        return texture;
+    };
+
+    // Override texture data
+    const originalTexImage2D = WebGLRenderingContext.prototype.texImage2D;
+    WebGLRenderingContext.prototype.texImage2D = function(target, level, internalformat, width, height, border, format, type, pixels) {
+
+        // Filter specific formats
+        if (internalformat === WebGLRenderingContext.COMPRESSED_RGB_S3TC_DXT1_EXT) {
+            internalformat = WebGLRenderingContext.RGB;
+        }
+
+        return originalTexImage2D.call(
+            this, target, level, internalformat, 
+            width, height, border, format, type, pixels
+        );
+    };
+
+    // Emulate rendering capabilities
+    const originalRender = WebGLRenderingContext.prototype.drawElements;
+    WebGLRenderingContext.prototype.drawElements = function(mode, count, type, offset) {
+        // Add NVIDIA-specific rendering artifacts
+        this.enable(this.POLYGON_SMOOTH);
+        this.hint(this.POLYGON_SMOOTH_HINT, this.NICEST);
+        return originalRender.call(this, mode, count, type, offset);
+    };
+
+    // Override shader information
+    const originalShaderSource = WebGLRenderingContext.prototype.shaderSource;
+    WebGLRenderingContext.prototype.shaderSource = function(shader, source) {
+        const modifiedSource = source
+            .replace(/Adreno/gi, 'NVIDIA')
+            .replace(/Mali/gi, 'NVIDIA')
+            .replace(/PowerVR/gi, 'NVIDIA')
+            .replace(/Intel/gi, 'NVIDIA');
+        return originalShaderSource.call(this, shader, modifiedSource);
+    };
+    """
+
+    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+        "source": texture_spoofing_script
+    })
+    driver.execute_script(texture_spoofing_script)
+
+    return driver
