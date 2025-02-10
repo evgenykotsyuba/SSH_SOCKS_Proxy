@@ -12,6 +12,7 @@ from chrome_font_fingerprinting_protection import get_font_fingerprinting_protec
 from canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
 from chrome_timezone_configuration import get_timezone_spoofing_script
 from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer, modify_webgl_textures
+from chrome_dtmg import dtmg_script
 
 
 def get_locale_configuration(language_setting: str) -> dict:
@@ -132,6 +133,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--disable-webrtc")
     chrome_options.add_argument("--enforce-webrtc-ip-permission-check")
     chrome_options.add_argument("--force-webrtc-ip-handling-policy=disable_non_proxied_udp")
+    chrome_options.add_argument("--disable-features=WebRtcHideLocalIpsWithMdns")
 
     # Set WebRTC and font preferences
     prefs = {
@@ -151,7 +153,10 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         "browser.display.use_document_fonts": 0,
 
         # Language preferences
-        "intl.accept_languages": accept_language
+        "intl.accept_languages": accept_language,
+
+        # DTMG
+        "websocket.enabled": False,
     }
     chrome_options.add_experimental_option("prefs", prefs)
 
@@ -181,6 +186,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     try:
         # Launch the browser
         service = Service(ChromeDriverManager().install())
+        logging.info("Starting Chrome with proxy...")
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
         # Add TLS Fingerprint modification
@@ -235,8 +241,16 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
             "source": timezone_spoofing_script
         })
 
+        # JavaScript injection from "Don't Track Me Google"
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": dtmg_script
+        })
+
         # Navigate to the specified home page
         driver.get(home_page)
+
+        # # Re-inject DTMG after loading (for dynamic content)
+        driver.execute_script(dtmg_script)
 
         # Set the custom title using JavaScript
         driver.execute_script(f"document.title = `{custom_title}`;")
