@@ -1,22 +1,25 @@
-# Расширенная JavaScript-инъекция для блокировки трекинга
+# Advanced JavaScript injection for tracking prevention and blocking
 dtmg_script = """
-// Блокировка Google Analytics и gtag
+// Block Google Analytics and gtag functionality
+// Replaces tracking functions with console logging for debugging
 window.ga = window.ga || function() { console.log('GA blocked:', arguments); };
 window.gtag = function() { console.log('GTag blocked:', arguments); };
 window.dataLayer = window.dataLayer || [];
 window.dataLayer.push = function() { console.log('DataLayer blocked:', arguments); };
 
-// Удаление трекинговых атрибутов у всех элементов
+// Remove tracking-related attributes from all elements
+// Targets common event listener attributes used for tracking
 const removeTrackingAttributes = (element) => {
     const attributes = ['onclick', 'onmousedown', 'onmouseup', 'onfocus', 'ontouchstart'];
     attributes.forEach(attr => element.removeAttribute(attr));
 };
 
-// Очистка URL от параметров трекинга
+// Clean URLs by removing tracking parameters
+// Handles various tracking parameter formats and malformed URLs
 const cleanUrl = (url) => {
     try {
         const parsed = new URL(url);
-        // Удаляем известные трекинговые параметры
+        // Remove known tracking parameters (UTM, Facebook, Google Ads, Microsoft Ads)
         ['utm_', 'fbclid', 'gclid', 'msclkid'].forEach(param => {
             parsed.searchParams.forEach((_, key) => {
                 if (key.startsWith(param)) parsed.searchParams.delete(key);
@@ -24,15 +27,17 @@ const cleanUrl = (url) => {
         });
         return parsed.toString();
     } catch {
-        return url;
+        return url; // Return original URL if parsing fails
     }
 };
 
-// Обработка ссылок, изображений и iframe
+// Process links, images, and iframes to remove tracking
+// Handles both static and dynamically added elements
 const processElements = () => {
-    // Обработка всех элементов с href/src
+    // Process all elements with href/src attributes
     document.querySelectorAll('a, img, iframe').forEach(el => {
         if (el.tagName === 'A') {
+            // Handle Google redirect URLs
             if (el.href.includes('google.com/url?')) {
                 const url = new URL(el.href);
                 el.href = url.searchParams.get('q') || el.href;
@@ -44,7 +49,7 @@ const processElements = () => {
         removeTrackingAttributes(el);
     });
 
-    // Обработка форм
+    // Process forms to clean action URLs and remove tracking
     document.querySelectorAll('form').forEach(form => {
         form.setAttribute('data-original-action', form.action);
         form.action = cleanUrl(form.action);
@@ -52,7 +57,8 @@ const processElements = () => {
     });
 };
 
-// Инициализация MutationObserver для динамических элементов
+// Initialize MutationObserver to handle dynamic content
+// Monitors DOM changes and processes new elements
 const observer = new MutationObserver((mutations) => {
     mutations.forEach((mutation) => {
         mutation.addedNodes.forEach(node => {
@@ -64,7 +70,7 @@ const observer = new MutationObserver((mutations) => {
     });
 });
 
-// Запуск обработки при загрузке и подключение наблюдателя
+// Set up initial processing and start observer
 document.addEventListener('DOMContentLoaded', () => {
     processElements();
     observer.observe(document.body, {
@@ -74,7 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// Перехват XMLHttpRequest и fetch для блокировки трекеров
+// Intercept and block tracking requests
+// Override XMLHttpRequest and fetch to prevent analytics calls
 const originalXHROpen = XMLHttpRequest.prototype.open;
 XMLHttpRequest.prototype.open = function(method, url) {
     if (url.includes('google-analytics.com')) {
