@@ -265,6 +265,11 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
 
 def chrome_browser(socks_port: int, user_agent: str, home_page: str, custom_title: str, language_setting: str):
     """Launches the Chrome browser with SOCKS proxy and sets a custom title."""
+    if not isinstance(socks_port, int):
+        raise TypeError("socks_port must be an integer")
+    if socks_port < 0 or socks_port > 65535:
+        raise ValueError("socks_port must be between 0 and 65535")
+
     socks_host = 'localhost'
     try:
         # Launch the browser and return the driver for control
