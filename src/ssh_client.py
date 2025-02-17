@@ -142,18 +142,19 @@ class SSHClient:
                         if self.reconnect_attempts >= self.max_reconnect_attempts:
                             logging.error("Maximum reconnect attempts reached. Stopping client.")
                             self.stop()
-                            break
-                        for _ in range(min(5 * self.reconnect_attempts, 60)):  # Split sleep into smaller intervals
+                            return  # <-- Exit the function completely
+
+                        for _ in range(min(5 * self.reconnect_attempts, 60)):
                             if not self._running:
-                                break
-                            await asyncio.sleep(1)  # Short intervals to allow for interruption
+                                return  # <-- Immediate exit
+                            await asyncio.sleep(1)
                     except Exception as e:
                         logging.error(f"Unexpected error during connection management: {e}")
-                        await asyncio.sleep(5)  # Here, sleep can also be split into intervals
+                        await asyncio.sleep(5)
                 else:
-                    for _ in range(100):  # Split 100 seconds into smaller intervals
+                    for _ in range(100):
                         if not self._running:
-                            break
+                            return  # <-- Immediate exit
                         await asyncio.sleep(1)
             except Exception as e:
                 logging.error(f"Error in connection management loop: {e}")
