@@ -13,6 +13,7 @@ from chrome_canvas_fingerprinting_protection import get_canvas_fingerprinting_pr
 from chrome_timezone_configuration import get_timezone_spoofing_script
 from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer, modify_webgl_textures
 from chrome_privacy_fingerprint_protection import modify_privacy_fingerprint
+from chrome_webrtc_protection import get_webrtc_protection_script
 from chrome_plugin_fingerprinting_protection import modify_plugins
 from chrome_audiocontext_fingerprinting_protection import modify_audiocontext
 from chrome_dtmg import dtmg_script
@@ -251,6 +252,12 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         })
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": modify_audiocontext()
+        })
+
+        # Add WebRTC protection script
+        webrtc_protection_script = get_webrtc_protection_script()
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": webrtc_protection_script
         })
 
         # JavaScript injection from "Don't Track Me Google"
