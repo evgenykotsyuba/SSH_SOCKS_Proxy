@@ -6,7 +6,6 @@ OVERRIDE = {
             get: () => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
         });
         Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override clipboard API
         Object.defineProperty(navigator, 'clipboard', {
@@ -82,7 +81,6 @@ OVERRIDE = {
             get: () => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
         });
         Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
         Object.defineProperty(navigator, 'deviceMemory', { get: () => 16 });
         Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
@@ -113,7 +111,6 @@ OVERRIDE = {
         });
 
         // Set navigator.webdriver to false to prevent automation detection
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         console.log('Fingerprint protection applied.');
         """,
@@ -135,9 +132,6 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'vendor', {
             get: () => 'Google Inc.',
         });
-
-        // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
@@ -210,9 +204,6 @@ OVERRIDE = {
             get: () => 'Apple Computer, Inc.',
         });
 
-        // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
             get: () => 10, // iPad typically supports multi-touch with 10 points
@@ -283,9 +274,6 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'vendor', {
             get: () => '',
         });
-
-        // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
