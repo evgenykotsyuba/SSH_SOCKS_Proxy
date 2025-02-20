@@ -1,4 +1,4 @@
-# canvas_fingerprinting_protection.py
+# chrome_canvas_fingerprinting_protection.py
 import logging
 
 

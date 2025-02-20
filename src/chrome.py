@@ -9,9 +9,11 @@ from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
 from chrome_tls_fingerprinting_protection import modify_tls_fingerprinting_protection
 from chrome_font_fingerprinting_protection import get_font_fingerprinting_protection_script
-from canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
+from chrome_canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
 from chrome_timezone_configuration import get_timezone_spoofing_script
 from chrome_webgl_fingerprinting_protection import modify_webgl_vendor_renderer, modify_webgl_textures
+from chrome_plugin_fingerprinting_protection import modify_plugins
+from chrome_audiocontext_fingerprinting_protection import modify_audiocontext
 from chrome_dtmg import dtmg_script
 
 
@@ -240,6 +242,12 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
             "source": timezone_spoofing_script
         })
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": modify_plugins()
+        })
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": modify_audiocontext()
+        })
 
         # JavaScript injection from "Don't Track Me Google"
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
@@ -249,7 +257,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         # Navigate to the specified home page
         driver.get(home_page)
 
-        # # Re-inject DTMG after loading (for dynamic content)
+        # Re-inject DTMG after loading (for dynamic content)
         driver.execute_script(dtmg_script)
 
         # Set the custom title using JavaScript

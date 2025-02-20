@@ -8,56 +8,11 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'vendor', { get: () => 'Apple Computer, Inc.' });
         Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
-        // Disable plugins and mimeTypes
-        Object.defineProperty(navigator, 'plugins', { get: () => new PluginArray() });
-        Object.defineProperty(navigator, 'mimeTypes', { get: () => new MimeTypeArray() });
-
         // Override clipboard API
         Object.defineProperty(navigator, 'clipboard', {
             get: () => ({
                 writeText: () => Promise.resolve(),
                 readText: () => Promise.resolve(''),
-            }),
-        });
-
-        // Randomize Canvas Fingerprinting
-        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
-
-        const originalGetContext = HTMLCanvasElement.prototype.getContext;
-        HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-            const context = originalGetContext.call(this, type, attributes);
-            if (context && type === '2d') {
-                const originalGetImageData = context.getImageData;
-                context.getImageData = function(...args) {
-                    const imageData = originalGetImageData.apply(this, args);
-                    // Slightly modify pixel data
-                    for (let i = 0; i < imageData.data.length; i += 4) {
-                        imageData.data[i] = (imageData.data[i] + 1) % 256;
-                    }
-                    return imageData;
-                };
-            }
-            return context;
-        };
-
-        // Randomize WebGL Fingerprinting
-        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(param) {
-            const spoofedParams = {
-                37446: 'Intel Inc.', // UNMASKED_VENDOR_WEBGL
-                37445: 'Intel Iris OpenGL Engine', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || originalGetParameter.call(this, param);
-        };
-
-        // Block font enumeration
-        Object.defineProperty(document, 'fonts', {
-            get: () => ({
-                forEach: () => {},
-                size: 0,
             }),
         });
 
@@ -132,51 +87,6 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'maxTouchPoints', { get: () => 0 });
         Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
 
-        // Disable plugins and mimeTypes
-        Object.defineProperty(navigator, 'plugins', { get: () => new PluginArray() });
-        Object.defineProperty(navigator, 'mimeTypes', { get: () => new MimeTypeArray() });
-
-        // Block font enumeration
-        Object.defineProperty(document, 'fonts', {
-            get: () => ({
-                forEach: () => {},
-                size: 0,
-            }),
-        });
-
-        // Randomize Canvas Fingerprinting
-        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
-
-        const originalGetContext = HTMLCanvasElement.prototype.getContext;
-        HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-            const context = originalGetContext.call(this, type, attributes);
-            if (context && type === '2d') {
-                const originalGetImageData = context.getImageData;
-                context.getImageData = function(...args) {
-                    const imageData = originalGetImageData.apply(this, args);
-                    // Slightly modify pixel data
-                    for (let i = 0; i < imageData.data.length; i += 4) {
-                        imageData.data[i] = (imageData.data[i] + 1) % 256;
-                    }
-                    return imageData;
-                };
-            }
-            return context;
-        };
-
-        // Randomize WebGL Fingerprinting
-        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(param) {
-            const spoofedParams = {
-                37446: 'Intel Corporation', // UNMASKED_VENDOR_WEBGL
-                37445: 'Intel HD Graphics 620', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || originalGetParameter.call(this, param);
-        };
-
         // Proxy for screen properties
         Object.defineProperty(window, 'screen', {
             get: () => ({
@@ -195,9 +105,7 @@ OVERRIDE = {
     """,
     "Linux_Ubuntu_Firefox": """
         // Override navigator.platform
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'Linux x86_64',
-        });
+        Object.defineProperty(navigator, 'platform', {  get: () => 'Linux x86_64' });
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
@@ -205,87 +113,13 @@ OVERRIDE = {
         });
 
         // Set navigator.webdriver to false to prevent automation detection
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => false,
-        });
-
-        // Block Canvas Fingerprinting
-        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-        };
-
-        const originalGetContext = HTMLCanvasElement.prototype.getContext;
-        HTMLCanvasElement.prototype.getContext = function(type, attributes) {
-            const context = originalGetContext.call(this, type, attributes);
-            if (context && type === '2d') {
-                const originalGetImageData = context.getImageData;
-                context.getImageData = function(...args) {
-                    const imageData = originalGetImageData.apply(this, args);
-                    for (let i = 0; i < imageData.data.length; i += 4) {
-                        imageData.data[i] = (imageData.data[i] + 1) % 256; // Slightly modify pixel data
-                    }
-                    return imageData;
-                };
-            }
-            return context;
-        };
-
-        // Block WebGL Fingerprinting
-        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function(param) {
-            const spoofedParams = {
-                37446: 'Intel Inc.', // UNMASKED_VENDOR_WEBGL
-                37445: 'Mesa DRI Intel(R) HD Graphics', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || originalGetParameter.call(this, param);
-        };
-
-        // Block WebGL debug extensions
-        const originalGetExtension = WebGLRenderingContext.prototype.getExtension;
-        WebGLRenderingContext.prototype.getExtension = function(name) {
-            const blockedExtensions = ['WEBGL_debug_renderer_info', 'WEBGL_debug_shaders'];
-            if (blockedExtensions.includes(name)) {
-                return null;
-            }
-            return originalGetExtension.call(this, name);
-        };
-
-        // Hide fonts
-        const originalFonts = document.fonts;
-        Object.defineProperty(document, 'fonts', {
-            get: () => ({
-                forEach: () => {},
-                size: 0
-            }),
-        });
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         console.log('Fingerprint protection applied.');
         """,
     "Android_Pixel_Chrome": """
         // Override navigator.platform
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'Linux armv8l',
-        });
-        
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => new PluginArray(),
-            configurable: true
-        });
-        
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => new MimeTypeArray(),
-            configurable: true
-        });
-        
-        // Override plugins length
-        Object.defineProperty(navigator.plugins, 'length', {
-            get: () => 0,
-            configurable: true
-        });
-        
-        // Override plugin refresh method
-        navigator.plugins.refresh = () => {};
+        Object.defineProperty(navigator, 'platform', { get: () => 'Linux armv8l' });
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
@@ -303,9 +137,7 @@ OVERRIDE = {
         });
 
         // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => false,
-        });
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
@@ -351,31 +183,6 @@ OVERRIDE = {
             }),
         });
 
-        // Block WebGL Fingerprinting
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-            // Modify key parameters to mimic Android
-            const spoofedParams = {
-                37446: 'Qualcomm', // UNMASKED_VENDOR_WEBGL
-                37445: 'Adreno (TM) 640', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || getParameter.call(this, param);
-        };
-
-        // Block AudioContext Fingerprinting
-        const originalAudioContext = AudioContext.prototype.getChannelData;
-        AudioContext.prototype.getChannelData = function (param) {
-            // Generate fake data
-            return new Float32Array(param).fill(0);
-        };
-
-        // Block Canvas Fingerprinting
-        const toDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            // Return a fake image
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
-
         // Override some other methods for consistency
         window.navigator.__defineGetter__('platform', () => 'Linux armv8l');
         window.navigator.__defineGetter__('userAgent', () =>
@@ -386,28 +193,7 @@ OVERRIDE = {
         """,
     "iPadOS_Safari": """
         // Override navigator.platform
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'iPad',
-        });
-        
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => new PluginArray(),
-            configurable: true
-        });
-        
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => new MimeTypeArray(),
-            configurable: true
-        });
-        
-        // Override plugins length
-        Object.defineProperty(navigator.plugins, 'length', {
-            get: () => 0,
-            configurable: true
-        });
-        
-        // Override plugin refresh method
-        navigator.plugins.refresh = () => {};
+        Object.defineProperty(navigator, 'platform', { get: () => 'iPad' });
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
@@ -425,9 +211,7 @@ OVERRIDE = {
         });
 
         // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => false,
-        });
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
@@ -473,31 +257,6 @@ OVERRIDE = {
             }),
         });
 
-        // Block WebGL Fingerprinting
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-            // Modify key parameters to mimic iPadOS
-            const spoofedParams = {
-                37446: 'Apple', // UNMASKED_VENDOR_WEBGL
-                37445: 'Apple GPU', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || getParameter.call(this, param);
-        };
-
-        // Block AudioContext Fingerprinting
-        const originalAudioContext = AudioContext.prototype.getChannelData;
-        AudioContext.prototype.getChannelData = function (param) {
-            // Generate fake data
-            return new Float32Array(param).fill(0);
-        };
-
-        // Block Canvas Fingerprinting
-        const toDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            // Return a fake image
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
-
         // Override some other methods for consistency
         window.navigator.__defineGetter__('platform', () => 'iPad');
         window.navigator.__defineGetter__('userAgent', () =>
@@ -508,28 +267,7 @@ OVERRIDE = {
         """,
     "Windows_Server_IE11": """
         // Override navigator.platform
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'Win32',
-        });
-        
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => new PluginArray(),
-            configurable: true
-        });
-        
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => new MimeTypeArray(),
-            configurable: true
-        });
-        
-        // Override plugins length
-        Object.defineProperty(navigator.plugins, 'length', {
-            get: () => 0,
-            configurable: true
-        });
-        
-        // Override plugin refresh method
-        navigator.plugins.refresh = () => {};
+        Object.defineProperty(navigator, 'platform', { get: () => 'Win32' });
 
         // Override navigator.userAgent
         Object.defineProperty(navigator, 'userAgent', {
@@ -547,9 +285,7 @@ OVERRIDE = {
         });
 
         // Set navigator.webdriver to false (to prevent automation detection)
-        Object.defineProperty(navigator, 'webdriver', {
-            get: () => false,
-        });
+        Object.defineProperty(navigator, 'webdriver', { get: () => false });
 
         // Override navigator.maxTouchPoints
         Object.defineProperty(navigator, 'maxTouchPoints', {
@@ -595,31 +331,6 @@ OVERRIDE = {
             }),
         });
 
-        // Block WebGL Fingerprinting
-        const getParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-            // Modify key parameters to mimic Windows Server
-            const spoofedParams = {
-                37446: 'Microsoft', // UNMASKED_VENDOR_WEBGL
-                37445: 'Microsoft Basic Render Driver', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || getParameter.call(this, param);
-        };
-
-        // Block AudioContext Fingerprinting
-        const originalAudioContext = AudioContext.prototype.getChannelData;
-        AudioContext.prototype.getChannelData = function (param) {
-            // Generate fake data
-            return new Float32Array(param).fill(0);
-        };
-
-        // Block Canvas Fingerprinting
-        const toDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function (...args) {
-            // Return a fake image
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
-
         // Override some other methods for consistency
         window.navigator.__defineGetter__('platform', () => 'Win32');
         window.navigator.__defineGetter__('userAgent', () =>
@@ -633,50 +344,10 @@ OVERRIDE = {
         Object.defineProperty(navigator, 'vendor', {
             get: () => 'Google Inc.',
         });
-        
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => new PluginArray(),
-            configurable: true
-        });
-        
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => new MimeTypeArray(),
-            configurable: true
-        });
-        
-        // Override plugins length
-        Object.defineProperty(navigator.plugins, 'length', {
-            get: () => 0,
-            configurable: true
-        });
-        
-        // Override plugin refresh method
-        navigator.plugins.refresh = () => {};  
     """,
     "iOS_Safari": """
         // iOS 16 Safari Spoofing
-        Object.defineProperty(navigator, 'platform', {
-            get: () => 'iPhone',
-        });
-        
-        Object.defineProperty(navigator, 'plugins', {
-            get: () => new PluginArray(),
-            configurable: true
-        });
-        
-        Object.defineProperty(navigator, 'mimeTypes', {
-            get: () => new MimeTypeArray(),
-            configurable: true
-        });
-        
-        // Override plugins length
-        Object.defineProperty(navigator.plugins, 'length', {
-            get: () => 0,
-            configurable: true
-        });
-        
-        // Override plugin refresh method
-        navigator.plugins.refresh = () => {};  
+        Object.defineProperty(navigator, 'platform', { get: () => 'iPhone' });
 
         Object.defineProperty(navigator, 'userAgent', {
             get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
@@ -725,28 +396,6 @@ OVERRIDE = {
         Object.defineProperty(window, 'outerHeight', {
             get: () => 812,
         });
-
-        // Block WebGL Fingerprinting
-        const originalGetParameter = WebGLRenderingContext.prototype.getParameter;
-        WebGLRenderingContext.prototype.getParameter = function (param) {
-            const spoofedParams = {
-                37446: 'Apple Inc.', // UNMASKED_VENDOR_WEBGL
-                37445: 'Apple GPU', // UNMASKED_RENDERER_WEBGL
-            };
-            return spoofedParams[param] || originalGetParameter.call(this, param);
-        };
-
-        // Block AudioContext Fingerprinting
-        const originalGetChannelData = AudioContext.prototype.getChannelData;
-        AudioContext.prototype.getChannelData = function () {
-            return new Float32Array(128).fill(0);
-        };
-
-        // Block Canvas Fingerprinting
-        const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-        HTMLCanvasElement.prototype.toDataURL = function () {
-            return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
-        };
 
         console.log('Spoofing as iOS 16 successfully applied.');
     """
