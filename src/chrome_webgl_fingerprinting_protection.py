@@ -16,11 +16,26 @@ def modify_webgl_vendor_renderer(driver):
             [WebGLRenderingContext.MAX_TEXTURE_SIZE]: 16384,
             [WebGLRenderingContext.MAX_RENDERBUFFER_SIZE]: 16384,
             [WebGL2RenderingContext.MAX_3D_TEXTURE_SIZE]: 2048,
-            [WebGL2RenderingContext.MAX_COLOR_ATTACHMENTS]: 8
+            [WebGL2RenderingContext.MAX_COLOR_ATTACHMENTS]: 8,
+            [WebGLRenderingContext.MAX_VERTEX_ATTRIBS]: 16,
+            [WebGLRenderingContext.MAX_VERTEX_UNIFORM_VECTORS]: 1024,
+            [WebGLRenderingContext.MAX_FRAGMENT_UNIFORM_VECTORS]: 1024,
+            [WebGLRenderingContext.MAX_VARYING_VECTORS]: 30,
+            [WebGLRenderingContext.MAX_VERTEX_TEXTURE_IMAGE_UNITS]: 16,
+            [WebGLRenderingContext.MAX_TEXTURE_IMAGE_UNITS]: 16,
+            [WebGLRenderingContext.MAX_COMBINED_TEXTURE_IMAGE_UNITS]: 32,
+            [WebGLRenderingContext.MAX_CUBE_MAP_TEXTURE_SIZE]: 16384,
+            [WebGL2RenderingContext.MAX_ARRAY_TEXTURE_LAYERS]: 2048,
+            [WebGL2RenderingContext.MAX_SAMPLES]: 8,
+            [WebGLRenderingContext.ALIASED_LINE_WIDTH_RANGE]: [1, 1],
+            [WebGLRenderingContext.ALIASED_POINT_SIZE_RANGE]: [1, 1024]
         },
         extensions: [
             'ANGLE_instanced_arrays',
             'EXT_blend_minmax',
+            'WEBGL_compressed_texture_s3tc',
+            'WEBGL_compressed_texture_etc',
+            'WEBGL_compressed_texture_bptc',
             'WEBGL_debug_renderer_info'
         ]
     };
@@ -80,6 +95,19 @@ def modify_webgl_vendor_renderer(driver):
         }
         return originalCreateElement.apply(this, arguments);
     };
+    
+    // Intercepting existing Canvas elements
+    const canvases = document.querySelectorAll('canvas');
+    canvases.forEach(canvas => {
+        const originalGetContext = canvas.getContext.bind(canvas);
+        canvas.getContext = function(type, attrs) {
+            if (type === 'webgl' || type === 'webgl2') {
+                const ctx = originalGetContext(type, attrs);
+                return ctx ? wrapContext(ctx, type === 'webgl2') : null;
+            }
+            return originalGetContext(type, attrs);
+        };
+    });
 
     // ========== GPU EMULATION VIA NAVIGATOR ==========
     Object.defineProperty(navigator, 'gpu', {
