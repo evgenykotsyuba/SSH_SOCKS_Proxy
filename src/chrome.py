@@ -108,6 +108,7 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument(f"--proxy-server=socks5://{socks_host}:{socks_port}")
     chrome_options.add_argument("--incognito")  # Enable incognito mode
     # chrome_options.add_argument("--disable-web-security")  # Disables security mechanisms
+    chrome_options.add_argument("--disable-features=UserAgentClientHint")
     chrome_options.add_argument(f"--user-agent={user_agent}")  # Set a custom User-Agent
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Remove WebDriver flag
     chrome_options.add_argument("--enable-logging")
