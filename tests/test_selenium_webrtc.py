@@ -22,7 +22,7 @@ sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, "src"))
 
 try:
-    from chrome_webrtc_protection import modify_webrtc_settings
+    from chrome_webrtc_protection import get_webrtc_protection_script
 except ImportError as e:
     logger.error(f"Failed to import chrome_webrtc_protection: {e}")
     sys.exit(1)
@@ -45,6 +45,20 @@ def setup_driver(headless: bool = False) -> Optional[webdriver.Chrome]:
     except Exception as e:
         logger.error(f"WebDriver launch error: {e}")
         return None
+
+
+def apply_webrtc_protection(driver: webdriver.Chrome) -> webdriver.Chrome:
+    """Applies WebRTC protection script to the WebDriver instance."""
+    protection_script = get_webrtc_protection_script()
+    try:
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": protection_script
+        })
+        logger.info("WebRTC protection script applied successfully")
+    except Exception as e:
+        logger.error(f"Failed to apply WebRTC protection: {str(e)}")
+        raise
+    return driver
 
 
 def get_webrtc_info(driver: webdriver.Chrome) -> Dict:
@@ -107,8 +121,8 @@ def test_webrtc_spoofing(headless: bool = False, output_file: Optional[str] = No
         logger.info("WebRTC information before spoofing:")
         logger.info(json.dumps(original_webrtc, indent=4))
 
-        # Apply spoofing/protection
-        driver = modify_webrtc_settings(driver)
+        # Apply WebRTC protection
+        driver = apply_webrtc_protection(driver)
 
         # Retrieve data after spoofing
         spoofed_webrtc = get_webrtc_info(driver)
