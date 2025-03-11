@@ -4,10 +4,13 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 import logging
+import time
 
 from chrome_os_info import OVERRIDE
 from user_agent_parser import parse_os_from_user_agent
 from chrome_tls_fingerprinting_protection import modify_tls_fingerprinting_protection
+from chrome_javascript_fingerprinting_protection import get_javascript_fingerprinting_protection_script, \
+    get_navigator_protection_script
 from chrome_font_fingerprinting_protection import get_font_fingerprinting_protection_script
 from chrome_canvas_fingerprinting_protection import get_canvas_fingerprinting_protection_script
 from chrome_timezone_configuration import get_timezone_spoofing_script
@@ -107,12 +110,14 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--start-maximized")
     chrome_options.add_argument(f"--proxy-server=socks5://{socks_host}:{socks_port}")
     chrome_options.add_argument("--incognito")  # Enable incognito mode
-    # chrome_options.add_argument("--disable-web-security")  # Disables security mechanisms
     chrome_options.add_argument("--disable-features=UserAgentClientHint")
     chrome_options.add_argument(f"--user-agent={user_agent}")  # Set a custom User-Agent
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")  # Remove WebDriver flag
     chrome_options.add_argument("--enable-logging")
     chrome_options.add_argument("--v=1")  # Enable detailed logging
+
+    # Disable JavaScript fingerprinting
+    chrome_options.add_argument("--disable-features=SiteIsolationForCrossOriginIframes")
 
     # Get comprehensive locale configuration
     locale_config = get_locale_configuration(language_setting)
@@ -129,6 +134,9 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
     chrome_options.add_argument("--ignore-gpu-blocklist")  # Ignore GPU blocklist
     chrome_options.add_argument("--enable-webgl")  # Enable WebGL
     chrome_options.add_argument("--enable-webgl2")  # Enable WebGL2
+
+    # Canvas - changed from disable to enable for better detection
+    chrome_options.add_argument("--enable-2d-canvas")
 
     # Font fingerprinting protection
     chrome_options.add_argument("--disable-remote-fonts")  # Disable remote font loading
@@ -152,16 +160,29 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         "webrtc.enabled": False,
 
         # Font fingerprinting protection
-        "webkit.webprefs.fonts_enabled": False,
+        "webkit.webprefs.fonts_enabled": True,  # Changed to True to avoid detection
         "webkit.webprefs.default_font_size": 16,
         "webkit.webprefs.default_fixed_font_size": 16,
-        "browser.display.use_document_fonts": 0,
+
+        # Changed to 1 for compatibility - prevents detection
+        "browser.display.use_document_fonts": 1,
 
         # Language preferences
         "intl.accept_languages": accept_language,
 
         # DTMG
         "websocket.enabled": False,
+
+        # JavaScript settings - ensure JS is enabled
+        "javascript.enabled": True,
+
+        # Ensure all content is visible
+        "dom.disable_noscript": True,
+
+        # Privacy settings
+        "dom.disable_open_during_load": True,
+        "plugins.click_to_play": True,
+        "dom.disable_beforeunload": True,
     }
     chrome_options.add_experimental_option("prefs", prefs)
 
@@ -194,83 +215,111 @@ def launch_chrome_with_socks_proxy(socks_host: str, socks_port: int, user_agent:
         logging.info("Starting Chrome with proxy...")
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
+        # Important: Set page load strategy
+        driver.implicitly_wait(10)  # Wait up to 10 seconds for elements to appear
+
         # Add TLS Fingerprint modification
         driver = modify_tls_fingerprinting_protection(driver)
 
-        # Execute the script to override OS detection properties
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": script_to_override
-        })
+        # Order of script injections matters for compatibility
+        scripts_to_inject = [
+            # First add essential fingerprinting protection
+            {"name": "OS Override", "script": script_to_override},
+            {"name": "Navigator Protection", "script": get_navigator_protection_script()},
 
-        # Use the function from the new module for Canvas fingerprinting protection
-        canvas_protection_script = get_canvas_fingerprinting_protection_script()
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": canvas_protection_script
-        })
+            # Next add feature protections
+            {"name": "WebGL Vendor and Renderer", "function": modify_webgl_vendor_renderer},
+            {"name": "WebGL Textures", "function": modify_webgl_textures},
+            {"name": "Privacy Fingerprint", "script": modify_privacy_fingerprint()},
+            {"name": "Plugins", "script": modify_plugins()},
+            {"name": "AudioContext", "script": modify_audiocontext()},
 
-        # Use the function from the new module for font fingerprinting protection
-        font_protection_script = get_font_fingerprinting_protection_script()
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": font_protection_script
-        })
+            # Then add specialized protection scripts
+            {"name": "Canvas Protection", "script": get_canvas_fingerprinting_protection_script()},
+            {"name": "Font Protection", "script": get_font_fingerprinting_protection_script()},
+            {"name": "WebRTC Protection", "script": get_webrtc_protection_script()},
 
-        # Modify WebGL Vendor and Renderer
-        driver = modify_webgl_vendor_renderer(driver)
-        driver = modify_webgl_textures(driver)
+            # Language and timezone settings
+            {"name": "Language Config", "script": f"""
+                // Override navigator.language and navigator.languages
+                Object.defineProperty(navigator, 'language', {{
+                    get: () => '{lang_code}'
+                }});
 
-        # Updated language configuration script
-        language_config_script = f"""
-                    // Override navigator.language and navigator.languages
-                    Object.defineProperty(navigator, 'language', {{
-                        get: () => '{lang_code}'
-                    }});
+                Object.defineProperty(navigator, 'languages', {{
+                    get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
+                }});
 
-                    Object.defineProperty(navigator, 'languages', {{
-                        get: () => ['{accept_language.split(',')[0]}', '{lang_code}']
-                    }});
+                // Override Accept-Language header
+                Object.defineProperty(navigator, 'acceptLanguages', {{
+                    get: () => '{accept_language}'
+                }});
+            """},
+            {"name": "Timezone Spoofing", "script": get_timezone_spoofing_script(tz_config, accept_language)},
 
-                    // Override Accept-Language header
-                    Object.defineProperty(navigator, 'acceptLanguages', {{
-                        get: () => '{accept_language}'
-                    }});
-                    """
+            # JavaScript protection should be last to not interfere with other scripts
+            {"name": "JavaScript Protection", "script": get_javascript_fingerprinting_protection_script()},
 
-        # Use the function from the new module to spoof the timezone
-        timezone_spoofing_script = get_timezone_spoofing_script(tz_config, accept_language)
+            # DTMG script last
+            {"name": "DTMG Script", "script": dtmg_script}
+        ]
 
-        # Execute protection scripts
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": language_config_script
-        })
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": timezone_spoofing_script
-        })
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": modify_plugins()
-        })
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": modify_privacy_fingerprint()
-        })
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": modify_audiocontext()
-        })
-
-        # Add WebRTC protection script
-        webrtc_protection_script = get_webrtc_protection_script()
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": webrtc_protection_script
-        })
-
-        # JavaScript injection from "Don't Track Me Google"
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
-            "source": dtmg_script
-        })
+        # Execute all scripts in order
+        for script_info in scripts_to_inject:
+            try:
+                if "script" in script_info:
+                    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                        "source": script_info["script"]
+                    })
+                    logging.info(f"Injected {script_info['name']} script")
+                elif "function" in script_info:
+                    driver = script_info["function"](driver)
+                    logging.info(f"Applied {script_info['name']} function")
+            except Exception as e:
+                logging.error(f"Failed to inject {script_info['name']}: {e}")
 
         # Navigate to the specified home page
         driver.get(home_page)
 
-        # Re-inject DTMG after loading (for dynamic content)
-        driver.execute_script(dtmg_script)
+        # Ensure page is fully loaded
+        time.sleep(2)
+
+        # Execute needed scripts directly on the page after load
+        critical_post_load_scripts = [
+            # Re-inject DTMG after loading
+            dtmg_script,
+
+            # Handle noscript elements specifically
+            """
+            (function() {
+                // Remove all noscript elements
+                const noscripts = document.querySelectorAll('noscript');
+                noscripts.forEach(ns => {
+                    if (ns && ns.parentNode) {
+                        ns.parentNode.removeChild(ns);
+                    }
+                });
+
+                // Add JS enabled classes and remove no-JS classes
+                document.documentElement.classList.remove('no-js');
+                document.documentElement.classList.add('js');
+
+                document.querySelectorAll('.no-js, .js-disabled').forEach(el => {
+                    el.style.display = 'none';
+                });
+
+                document.querySelectorAll('.js-enabled, [data-js-enabled]').forEach(el => {
+                    el.style.display = '';
+                });
+            })();
+            """
+        ]
+
+        for script in critical_post_load_scripts:
+            try:
+                driver.execute_script(script)
+            except Exception as e:
+                logging.error(f"Error executing post-load script: {e}")
 
         # Set the custom title using JavaScript
         driver.execute_script(f"document.title = `{custom_title}`;")
