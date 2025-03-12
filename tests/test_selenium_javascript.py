@@ -361,3 +361,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Example usage:
+# 1. Basic run: python tests/test_selenium_javascript.py
+# 2. Run in headless mode with DEBUG logging: python tests/test_selenium_javascript.py --headless --log-level DEBUG
+# 3. Run with results saved: python tests/test_selenium_javascript.py --headless --output canvas_results.json
+# 4. Full run with details: python tests/test_selenium_javascript.py --headless --log-level DEBUG --output canvas_test_results.json
