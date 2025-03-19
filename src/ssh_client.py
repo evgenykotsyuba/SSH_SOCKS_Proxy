@@ -2,8 +2,11 @@ import asyncio
 import asyncssh
 import aiohttp
 import logging
+from dataclasses import dataclass
 from typing import Optional, Callable
 from aiohttp_socks import ProxyConnector
+
+# Assuming this module exists and provides the necessary functions
 from password_encryption_decryption import decrypt_password, salt
 
 
@@ -12,21 +15,84 @@ class SSHConnectionError(Exception):
     pass
 
 
+@dataclass
+class SSHConfig:
+    """Configuration for SSH connection.
+
+    Attributes:
+        host: The hostname or IP address of the SSH server.
+        port: The port number of the SSH server.
+        user: The username for authentication.
+        auth_method: The authentication method ('password' or 'key').
+        password: The password for authentication (required if auth_method is 'password').
+        key_path: The path to the SSH key (required if auth_method is 'key').
+        dynamic_port: The local port for the SOCKS proxy (default: 1080).
+        keepalive_interval: Interval for keepalive packets (default: 0, disabled).
+        keepalive_count_max: Maximum keepalive packets before disconnection (default: 0, disabled).
+        test_url: URL to test the SOCKS proxy connection (optional).
+        test_timeout: Timeout for the SOCKS proxy test in seconds (default: 5).
+    """
+    host: str
+    port: int
+    user: str
+    auth_method: str  # 'password' or 'key'
+    password: Optional[str] = None
+    key_path: Optional[str] = None
+    dynamic_port: int = 1080
+    keepalive_interval: int = 0
+    keepalive_count_max: int = 0
+    test_url: Optional[str] = None
+    test_timeout: int = 5
+
+    def __post_init__(self):
+        """Validates the configuration after initialization."""
+        if self.auth_method not in ['password', 'key']:
+            raise ValueError("auth_method must be 'password' or 'key'")
+        if self.auth_method == 'password' and not self.password:
+            raise ValueError("Password is required for auth_method='password'")
+        if self.auth_method == 'key' and not self.key_path:
+            raise ValueError("Key path is required for auth_method='key'")
+
+
 class SSHClient:
-    def __init__(self, config, status_callback: Optional[Callable[[bool], None]] = None):
-        if not hasattr(config, 'host') or not hasattr(config, 'port'):
-            raise ValueError("Invalid config: missing required attributes")
+    """Manages an SSH connection with SOCKS proxy forwarding.
+
+    Attributes:
+        config: The SSH configuration object.
+        connection: The active SSH connection (or None).
+        _running: Flag to control the connection management loop.
+        _connected: Current connection status.
+        status_callback: Optional callback to notify status changes.
+        reconnect_attempts: Number of reconnection attempts made.
+        max_reconnect_attempts: Maximum allowed reconnection attempts.
+        _forwarder: The SOCKS forwarder object.
+    """
+
+    def __init__(self, config: SSHConfig, status_callback: Optional[Callable[[bool], None]] = None):
+        """Initializes the SSH client with configuration and optional status callback.
+
+        Args:
+            config: The SSH configuration object.
+            status_callback: Optional function to call when connection status changes.
+
+        Raises:
+            ValueError: If the provided configuration is invalid.
+        """
         self.config = config
         self.connection: Optional[asyncssh.SSHClientConnection] = None
-        self._running = True
-        self._connected = False
+        self._running: bool = True
+        self._connected: bool = False
         self.status_callback = status_callback
-        self.reconnect_attempts = 0
-        self.max_reconnect_attempts = 10
+        self.reconnect_attempts: int = 0
+        self.max_reconnect_attempts: int = 10
         self._forwarder = None
 
-    def _update_status(self, connected: bool):
-        """Updates the connection status and invokes the callback if provided."""
+    def _update_status(self, connected: bool) -> None:
+        """Updates the connection status and invokes the callback if provided.
+
+        Args:
+            connected: The new connection status.
+        """
         if self._connected != connected:
             self._connected = connected
             if self.status_callback:
@@ -36,13 +102,17 @@ class SSHClient:
                     logging.error(f"Error in status callback: {e}")
 
     async def connect(self) -> None:
-        """Establishes an SSH connection and configures the SOCKS proxy."""
+        """Establishes an SSH connection and sets up the SOCKS proxy.
+
+        Raises:
+            SSHConnectionError: If connection or proxy setup fails.
+        """
         conn_params = None
         try:
-            # Clean up any existing connection resources
+            # Clean up any existing connection resources first
             await self._cleanup_connection()
 
-            logging.info(f"Connecting to {self.config.user}@{self.config.host}")
+            logging.info(f"Connecting to {self.config.user}@{self.config.host}:{self.config.port}")
 
             # Base connection parameters
             conn_params = {
@@ -102,16 +172,18 @@ class SSHClient:
             raise SSHConnectionError(f"Connection error: {e}")
 
         finally:
-            # Remove sensitive data and clean up resources
+            # Remove sensitive data and clean up resources if not connected
             if conn_params and 'password' in conn_params:
                 conn_params['password'] = None
-            await self._cleanup_connection()
 
-    async def _cleanup_connection(self):
-        """Clean up existing connections."""
+            if not self._connected:
+                await self._cleanup_connection()
+
+    async def _cleanup_connection(self) -> None:
+        """Cleans up existing connections and resources."""
         try:
             if self._forwarder:
-                # Instead of checking is_closing(), we'll just close it
+                # Close the forwarder without checking is_closing()
                 try:
                     self._forwarder.close()
                 except Exception as e:
@@ -128,7 +200,11 @@ class SSHClient:
             logging.error(f"Error during connection cleanup: {e}")
 
     async def manage_connection(self) -> None:
-        """Manage the connection and handle reconnection attempts."""
+        """Manages the connection and handles reconnection attempts.
+
+        This method runs in a loop until stopped, handling connection
+        maintenance and reconnection attempts when necessary.
+        """
         while self._running:
             try:
                 if not await self.is_connected():
@@ -142,49 +218,62 @@ class SSHClient:
                         if self.reconnect_attempts >= self.max_reconnect_attempts:
                             logging.error("Maximum reconnect attempts reached. Stopping client.")
                             self.stop()
-                            return  # <-- Exit the function completely
+                            return  # Exit the function completely
 
-                        for _ in range(min(5 * self.reconnect_attempts, 60)):
+                        # Exponential backoff for reconnection attempts
+                        backoff_time = min(5 * self.reconnect_attempts, 60)
+                        logging.info(f"Waiting {backoff_time} seconds before next reconnection attempt")
+
+                        # Check for stop signal every second during backoff
+                        for _ in range(backoff_time):
                             if not self._running:
-                                return  # <-- Immediate exit
+                                return  # Immediate exit if stopped
                             await asyncio.sleep(1)
                     except Exception as e:
                         logging.error(f"Unexpected error during connection management: {e}")
                         await asyncio.sleep(5)
                 else:
-                    for _ in range(100):
+                    # Check every second if we should stop while connected
+                    for _ in range(10):  # Check every 10 seconds when connected
                         if not self._running:
-                            return  # <-- Immediate exit
+                            return  # Immediate exit if stopped
                         await asyncio.sleep(1)
             except Exception as e:
                 logging.error(f"Error in connection management loop: {e}")
                 await asyncio.sleep(5)
 
     async def _check_socks_connection(self) -> bool:
-        """Check if the SOCKS proxy connection is working."""
+        """Checks if the SOCKS proxy connection is working.
+
+        Returns:
+            True if the SOCKS proxy is functional, False otherwise.
+        """
         if not self.config.test_url:
             logging.error("No test URL configured for SOCKS connection check")
             return False
 
         try:
-            async with ProxyConnector.from_url(f'socks5://localhost:{self.config.dynamic_port}') as connector:
-                async with aiohttp.ClientSession(connector=connector) as session:
-                    async with session.get(
-                            self.config.test_url,
-                            timeout=self.config.test_timeout if hasattr(self.config, 'test_timeout') else 5,
-                            ssl=False if not self.config.test_url.startswith("https") else True
-                    ) as response:
-                        is_successful = response.status == 200
-                        logging.info(
-                            f"SOCKS connection test {'succeeded' if is_successful else 'failed'}: {response.status}")
-                        return is_successful
-
+            connector = ProxyConnector.from_url(f'socks5://localhost:{self.config.dynamic_port}')
+            async with aiohttp.ClientSession(connector=connector) as session:
+                async with session.get(
+                        self.config.test_url,
+                        timeout=aiohttp.ClientTimeout(total=self.config.test_timeout),
+                        ssl=False if not self.config.test_url.startswith("https") else True
+                ) as response:
+                    is_successful = response.status == 200
+                    logging.info(
+                        f"SOCKS connection test {'succeeded' if is_successful else 'failed'}: {response.status}")
+                    return is_successful
         except (aiohttp.ClientError, aiohttp.ClientConnectorError, asyncio.TimeoutError, OSError) as e:
             logging.error(f"SOCKS connection check failed: {e}")
             return False
 
     async def is_connected(self) -> bool:
-        """Asynchronously checks the current connection status."""
+        """Asynchronously checks the current connection status.
+
+        Returns:
+            True if the connection is active and the SOCKS proxy is working, False otherwise.
+        """
         try:
             # Basic connection parameters check
             base_check = (
@@ -214,8 +303,8 @@ class SSHClient:
             self.connection = None
         self._update_status(False)
 
-    async def shutdown(self):
-        """Gracefully shut down the client."""
+    async def shutdown(self) -> None:
+        """Gracefully shuts down the client."""
         self.stop()
         if self.connection:
             await self.connection.wait_closed()
