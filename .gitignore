@@ -8,3 +8,5 @@ src/log
 traffic_stats_*
 main.spec
 tests/log
+./user
+./src/user
