@@ -1,12 +1,11 @@
 import socket
 import threading
 import logging
-import traceback
 import select
 import time
-from typing import Optional, Tuple
+from typing import Optional
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum
 import asyncio
 import signal
 import sys
