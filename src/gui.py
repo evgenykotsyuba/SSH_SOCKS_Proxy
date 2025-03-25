@@ -302,6 +302,17 @@ class SSHProxyGUI:
             label.grid(row=i, column=1, sticky=tk.E, padx=5, pady=5)
             self.traffic_labels[key] = label
 
+        # add button "Reset Counters"
+        reset_btn = ttk.Button(main_frame, text=translations["Reset Counters"],
+                               command=self._reset_traffic_counters)
+        reset_btn.pack(side=tk.BOTTOM, pady=10)
+
+    def _reset_traffic_counters(self) -> None:
+        """Resets traffic counters."""
+        if self.traffic_monitor:
+            self.traffic_monitor.reset_counters()
+            self._update_traffic_display(self.traffic_monitor.get_stats())
+
     def _update_traffic_display(self, stats: Dict[str, Any]) -> None:
         """Updates traffic statistics display."""
         if self.traffic_window and self.traffic_labels:

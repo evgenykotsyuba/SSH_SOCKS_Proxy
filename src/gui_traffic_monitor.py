@@ -76,6 +76,20 @@ class PortTrafficMonitor:
         except Exception as e:
             logging.error(f"Error saving stats: {e}")
 
+    def get_stats(self) -> dict:
+        """
+        Возвращает текущую статистику трафика.
+
+        Returns:
+            Словарь с данными о трафике, включая скорость и активные соединения.
+        """
+        # Получаем текущие данные о соединениях и трафике
+        connection_stats, total_traffic = self._get_connection_stats()
+        current_total = self._calculate_total_traffic(connection_stats, total_traffic)
+        stats_with_speed = self._calculate_speed(current_total, 1.0)  # Интервал по умолчанию 1 секунда
+        stats_with_speed['connections'] = connection_stats
+        return stats_with_speed
+
     def _get_connection_stats(self) -> Dict[tuple, dict]:
         """
         Retrieves statistics for active connections on the monitored port.
