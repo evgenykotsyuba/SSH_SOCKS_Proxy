@@ -15,7 +15,7 @@ from socks_to_http_proxy import SOCKStoHTTPProxy
 from languages_dictionary import TRANSLATIONS
 from logging_handler import ColoredLogQueue, ColoredLogHandler, ColorMapping
 from protocol_baner import run_check_banner
-from gui_traffic_monitor import PortTrafficMonitor
+from gui_traffic_monitor import PortTrafficMonitor, TrafficStats
 from gui_settings import SettingsWindow
 
 
@@ -311,22 +311,22 @@ class SSHProxyGUI:
         """Resets traffic counters."""
         if self.traffic_monitor:
             self.traffic_monitor.reset_counters()
-            self._update_traffic_display(self.traffic_monitor.get_stats())
+            # self._update_traffic_display(self.traffic_monitor.get_stats())
 
-    def _update_traffic_display(self, stats: Dict[str, Any]) -> None:
+    def _update_traffic_display(self, stats: TrafficStats) -> None:
         """Updates traffic statistics display."""
         if self.traffic_window and self.traffic_labels:
             for key, label in self.traffic_labels.items():
                 if key == "upload_speed":
-                    value = f"{PortTrafficMonitor.format_bytes(stats['upload_speed'])}/s"
+                    value = f"{PortTrafficMonitor.format_bytes(stats.upload_speed)}/s"
                 elif key == "download_speed":
-                    value = f"{PortTrafficMonitor.format_bytes(stats['download_speed'])}/s"
+                    value = f"{PortTrafficMonitor.format_bytes(stats.download_speed)}/s"
                 elif key == "total_upload":
-                    value = f"{PortTrafficMonitor.format_bytes(stats['total_bytes_sent'])}"
+                    value = f"{PortTrafficMonitor.format_bytes(stats.total_bytes_sent)}"
                 elif key == "total_download":
-                    value = f"{PortTrafficMonitor.format_bytes(stats['total_bytes_recv'])}"
+                    value = f"{PortTrafficMonitor.format_bytes(stats.total_bytes_recv)}"
                 elif key == "connections":
-                    value = str(stats['active_connections'])
+                    value = str(stats.active_connections)
                 label.config(text=value)
 
     def _close_traffic_monitor(self) -> None:
